@@ -16,5 +16,6 @@ export function isLang(value: string): value is Lang {
 export const DEFAULT_LANG: Lang = "fr";
 
 export function normalizeLang(value: string | undefined): Lang {
+  if (value === undefined) return DEFAULT_LANG;
   return isLang(value) ? value : DEFAULT_LANG;
 }
