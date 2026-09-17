@@ -1,108 +1,80 @@
-import type { Metadata } from "next";
-import { getListingBySlug, formatPrice, getSimilarListings, LISTINGS } from "@/data/listings";
+"use client";
+
+import { useEffect, useState } from "react";
+import { getMyAds } from "@/lib/userAds";
+import { formatPrice, type Listing } from "@/data/listings";
 import { getCategory } from "@/data/categories";
 import { getWilaya } from "@/data/wilayas";
-import { getDictionary } from "@/lib/i18n";
-import { isLang, normalizeLang } from "@/lib/lang";
-import { ListingGrid } from "@/components/ListingCard";
-import { Breadcrumbs } from "@/components/Breadcrumbs";
-import UserAdDetail from "@/components/UserAdDetail";
-import AdDetailClient from "./AdDetailClient";
+import type { Dictionary } from "@/lib/dictionary";
+import NotFoundContent from "@/components/NotFoundContent";
+import AdDetailClient from "@/app/[lang]/annonce/[slug]/AdDetailClient";
 
-type PageProps = {
-  params: Promise<{ lang: string; slug: string }>;
-};
-
-export async function generateStaticParams() {
-  return ["fr", "ar"].flatMap((lang) =>
-    LISTINGS.map((l) => ({ lang, slug: l.slug }))
-  );
+interface Props {
+  lang: "fr" | "ar";
+  dictionary: Dictionary;
+  slug: string;
 }
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const { lang, slug } = await params;
-  const resolved = (isLang(lang) ? lang : normalizeLang(lang)) as "fr" | "ar";
-  const listing = getListingBySlug(slug);
-  if (!listing) return { title: "Not found" };
-  const title = resolved === "fr" ? listing.titleFr : listing.titleAr;
-  return {
-    title: `${title} - Souk.dz`,
-    description: resolved === "fr" ? listing.descriptionFr : listing.descriptionAr,
-  };
-}
+export default function UserAdDetail({ lang, dictionary, slug }: Props) {
+  const [ad, setAd] = useState<Listing | null>(null);
+  const [loaded, setLoaded] = useState(false);
 
-export default async function AdDetailPage({ params }: PageProps) {
-  const { lang, slug } = await params;
-  const resolved = (isLang(lang) ? lang : normalizeLang(lang)) as "fr" | "ar";
-  const dictionary = getDictionary(resolved);
-  const listing = getListingBySlug(slug);
-  if (!listing) {
-    return <UserAdDetail lang={resolved} dictionary={dictionary} slug={slug} />;
-  }
+  useEffect(() => {
+    const found = getMyAds().find((a) => a.slug === slug);
+    setAd((found as Listing) ?? null);
+    setLoaded(true);
+  }, [slug]);
 
-  const category = getCategory(listing.categorySlug);
-  const wilaya = getWilaya(listing.wilayaCode);
-  const similar = getSimilarListings(listing, 4);
-  const title = resolved === "fr" ? listing.titleFr : listing.titleAr;
-  const description = resolved === "fr" ? listing.descriptionFr : listing.descriptionAr;
-  const condition =
-    resolved === "fr" ? listing.conditionFr : listing.conditionAr;
-  const commune = resolved === "fr" ? listing.communeFr : listing.communeAr;
+  if (!loaded) return null;
+
+  if (!ad) return <NotFoundContent />;
+
+  const category = getCategory(ad.categorySlug);
+  const wilaya = getWilaya(ad.wilayaCode);
+  const title = lang === "fr" ? ad.titleFr : ad.titleAr || ad.titleFr;
+  const description = lang === "fr" ? ad.descriptionFr : ad.descriptionAr || ad.descriptionFr;
+  const condition = lang === "fr" ? ad.conditionFr : ad.conditionAr;
+  const commune = lang === "fr" ? ad.communeFr : ad.communeAr;
   const locationText = wilaya
-    ? `${commune}, ${resolved === "fr" ? wilaya.fr : wilaya.ar}`
+    ? `${commune}, ${lang === "fr" ? wilaya.fr : wilaya.ar}`
     : commune;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
-      <Breadcrumbs
-        items={[
-          { label: dictionary.nav.home, href: `/${resolved}` },
-          {
-            label: category ? (resolved === "fr" ? category.fr : category.ar) : "",
-            href: `/${resolved}/categorie/${listing.categorySlug}`,
-          },
-          { label: title },
-        ]}
-      />
-
       <div className="mt-4 flex flex-col gap-6 xl:flex-row">
-        {/* Main content */}
         <div className="min-w-0 flex-1 space-y-6">
-          {/* Image gallery placeholder */}
           <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-            <div className="relative aspect-[16/10] flex items-center justify-center overflow-hidden bg-gradient-to-br from-emerald-600 via-teal-500 to-emerald-700">
-              <span className="text-8xl opacity-90">{category?.emoji ?? "📦"}</span>
-              <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-              {listing.featured && (
-                <span className="absolute top-3 ltr:left-3 rtl:right-3 rounded-full bg-amber-400/95 px-3 py-1 text-xs font-bold uppercase tracking-wide text-amber-950 shadow">
-                  ★ {resolved === "fr" ? "Annonce à la une" : "إعلان مميز"}
-                </span>
+            <div className="relative aspect-[16/10] flex items-center justify-center overflow-hidden">
+              {ad.images.length > 0 ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={ad.images[0]} alt={title} className="h-full w-full object-cover" />
+              ) : (
+                <div className="grid h-full w-full place-items-center bg-gradient-to-br from-emerald-600 via-teal-500 to-emerald-700">
+                  <span className="text-8xl opacity-90">{category?.emoji ?? "📦"}</span>
+                </div>
               )}
             </div>
           </div>
 
-          {/* Title & price */}
           <div className="rounded-2xl border border-slate-200 bg-white p-6">
             <h1 className="text-2xl font-extrabold leading-snug text-slate-900 lg:text-3xl">
               {title}
             </h1>
-
             <div className="mt-3 flex flex-wrap items-center gap-3">
               <span className="text-3xl font-extrabold text-emerald-700">
-                {formatPrice(listing.price, resolved)}
+                {formatPrice(ad.price, lang)}
               </span>
-              {listing.negotiable && listing.price > 0 && (
+              {ad.negotiable && ad.price > 0 && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200">
                   {dictionary.listing.negotiable}
                 </span>
               )}
-              {!listing.negotiable && listing.price > 0 && (
+              {!ad.negotiable && ad.price > 0 && (
                 <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-500">
                   {dictionary.listing.fixed}
                 </span>
               )}
             </div>
-
             <div className="mt-4 flex flex-wrap items-center gap-x-6 gap-y-2 text-sm text-slate-500">
               <span className="flex items-center gap-1.5">
                 <PinIcon />
@@ -111,13 +83,11 @@ export default async function AdDetailPage({ params }: PageProps) {
               <span className="flex items-center gap-1.5">
                 <CalendarIcon />
                 {dictionary.listing.publishedOn}{" "}
-                {formatDate(listing.createdAt, resolved)}
+                {formatDate(ad.createdAt, lang)}
               </span>
               <span className="flex items-center gap-1.5">
                 <EyeIcon />
-                {new Intl.NumberFormat(resolved === "ar" ? "ar-DZ" : "fr-DZ").format(
-                  listing.views
-                )}{" "}
+                {new Intl.NumberFormat(lang === "ar" ? "ar-DZ" : "fr-DZ").format(ad.views)}{" "}
                 {dictionary.listing.views}
               </span>
               {condition !== "-" && (
@@ -129,7 +99,6 @@ export default async function AdDetailPage({ params }: PageProps) {
             </div>
           </div>
 
-          {/* Description */}
           <div className="rounded-2xl border border-slate-200 bg-white p-6">
             <h2 className="mb-3 text-lg font-extrabold text-slate-900">
               {dictionary.listing.description}
@@ -139,54 +108,43 @@ export default async function AdDetailPage({ params }: PageProps) {
             </p>
           </div>
 
-          {/* Actions */}
-          <AdDetailClient
-            lang={resolved}
-            dictionary={dictionary}
-            listing={listing}
-          />
+          <AdDetailClient lang={lang} dictionary={dictionary} listing={ad} />
         </div>
 
-        {/* Sidebar */}
         <div className="w-full shrink-0 space-y-5 xl:w-80">
-          {/* Seller card */}
           <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <h3 className="mb-4 text-base font-extrabold text-slate-900">
               {dictionary.listing.seller}
             </h3>
-
             <div className="flex items-center gap-3">
               <div className="grid h-11 w-11 place-items-center rounded-full bg-gradient-to-br from-emerald-600 to-teal-500 text-sm font-bold text-white">
-                {(resolved === "fr" ? listing.sellerFr : listing.sellerAr).charAt(0)}
+                {(lang === "fr" ? ad.sellerFr : ad.sellerAr).charAt(0)}
               </div>
               <div>
                 <p className="font-bold text-slate-900">
-                  {resolved === "fr" ? listing.sellerFr : listing.sellerAr}
+                  {lang === "fr" ? ad.sellerFr : ad.sellerAr}
                 </p>
                 <p className="text-xs text-slate-500">{locationText}</p>
               </div>
             </div>
-
             <div className="mt-5 space-y-2.5">
               <a
-                href={`tel:${listing.phone}`}
+                href={`tel:${ad.phone}`}
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-emerald-600/25 transition-all hover:bg-emerald-700 hover:shadow-xl"
               >
                 <PhoneIcon />
                 {dictionary.listing.phone}
-                <span className="ltr:ml-2 rtl:mr-2 font-medium">{listing.phone}</span>
+                <span className="ltr:ml-2 rtl:mr-2 font-medium">{ad.phone}</span>
               </a>
-
               <a
-                href={`mailto:${listing.email}`}
+                href={`mailto:${ad.email}`}
                 className="flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 transition-colors hover:border-emerald-300 hover:bg-emerald-50"
               >
                 <EmailIcon />
                 {dictionary.listing.email}
               </a>
-
               <a
-                href={`https://wa.me/${listing.phone.replace(/[^0-9]/g, "")}`}
+                href={`https://wa.me/${ad.phone.replace(/[^0-9]/g, "")}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-green-500 px-4 py-3 text-sm font-bold text-white shadow-lg shadow-green-500/25 transition-all hover:bg-green-600"
@@ -196,28 +154,8 @@ export default async function AdDetailPage({ params }: PageProps) {
               </a>
             </div>
           </div>
-
-          {/* Ad reference */}
-          <div className="rounded-2xl border border-slate-200 bg-white p-5">
-            <h4 className="text-xs font-semibold text-slate-500">
-              {dictionary.listing.adId}
-            </h4>
-            <p className="mt-1 font-mono text-sm text-slate-700">
-              SKDZ-{String(listing.id).padStart(6, "0")}
-            </p>
-          </div>
         </div>
       </div>
-
-      {/* Similar ads */}
-      {similar.length > 0 && (
-        <section className="mt-12">
-          <h2 className="mb-5 text-xl font-extrabold text-slate-900">
-            {dictionary.listing.similarAds}
-          </h2>
-          <ListingGrid listings={similar} lang={resolved} dictionary={dictionary} />
-        </section>
-      )}
     </div>
   );
 }
