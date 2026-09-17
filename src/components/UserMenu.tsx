@@ -43,7 +43,7 @@ export default function UserMenu({
     return (
       <a
         href={`/${lang}/connexion`}
-        className="hidden items-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-700 transition-colors hover:border-emerald-600 hover:text-emerald-700 md:flex"
+        className="flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 transition-colors hover:border-emerald-600 hover:text-emerald-700 sm:px-4 sm:py-2.5 sm:text-sm"
       >
         <UserIcon />
         {loginLabel}

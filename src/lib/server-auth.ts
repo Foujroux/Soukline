@@ -208,12 +208,14 @@ export function createSession(user: SessionUser): string {
 
 export function verifySession(token: string | undefined | null): SessionPayload | null {
   if (!token) return null;
-  const [payloadPart, signature] = token.split(".");
-  if (!payloadPart || !signature) return null;
-  if (!timingSafeEqual(Buffer.from(signature, "utf8"), Buffer.from(sign(payloadPart), "utf8"))) {
-    return null;
-  }
   try {
+    const [payloadPart, signature] = token.split(".");
+    if (!payloadPart || !signature) return null;
+    const provided = Buffer.from(signature, "utf8");
+    const expected = Buffer.from(sign(payloadPart), "utf8");
+    if (provided.length !== expected.length || !timingSafeEqual(provided, expected)) {
+      return null;
+    }
     const payload = JSON.parse(fromBase64Url(payloadPart)) as SessionPayload;
     if (
       !payload.uid ||
