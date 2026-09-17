@@ -43,7 +43,7 @@ export default function PostAdButton({ lang, postAdLabel, registerLabel }: Props
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className={`${className} hidden sm:flex`}
+        className={className}
         aria-expanded={open}
         aria-haspopup="true"
       >
