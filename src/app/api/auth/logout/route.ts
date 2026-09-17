@@ -1,15 +1,14 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { isSecureRequest, SESSION_COOKIE } from "@/lib/server-auth";
 
 export const runtime = "nodejs";
 
-const SESSION_COOKIE = "soukdz_session";
-
-export async function POST() {
+export async function POST(request: NextRequest) {
   const response = NextResponse.json({ ok: true });
   response.cookies.set(SESSION_COOKIE, "", {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: isSecureRequest(request.headers.get("x-forwarded-proto"), request.url),
     path: "/",
     maxAge: 0,
   });

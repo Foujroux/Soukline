@@ -13,6 +13,25 @@ const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCK_DURATION_MS = 15 * 60 * 1000;
 
+export const SESSION_COOKIE = "soukdz_session";
+
+export function sessionCookieOptions(secure: boolean) {
+  return {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    secure,
+    path: "/",
+    maxAge: SESSION_TTL_SECONDS,
+  };
+}
+
+export function isSecureRequest(forwardedProto: string | null, url: string): boolean {
+  if (forwardedProto) {
+    return forwardedProto.split(",")[0].trim().toLowerCase() === "https";
+  }
+  return url.startsWith("https");
+}
+
 export class AuthError extends Error {
   constructor(public code: string, message?: string) {
     super(message ?? code);

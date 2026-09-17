@@ -1,24 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { AuthError, createSession, createUser } from "@/lib/server-auth";
+import {
+  AuthError,
+  createSession,
+  createUser,
+  isSecureRequest,
+  SESSION_COOKIE,
+  sessionCookieOptions,
+} from "@/lib/server-auth";
 import { sanitizeEmail, sanitizeName, sanitizePhone } from "@/lib/sanitize";
 import { VALID_ACCOUNT_TYPES, type AccountType } from "@/lib/auth-types";
 
 export const runtime = "nodejs";
 
-const SESSION_COOKIE = "soukdz_session";
-const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
-
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-
-function cookieOptions() {
-  return {
-    httpOnly: true,
-    sameSite: "lax" as const,
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: SESSION_TTL_SECONDS,
-  };
-}
 
 function parseJson(request: NextRequest): Promise<Record<string, unknown> | null> {
   const contentType = request.headers.get("content-type") ?? "";
@@ -57,7 +51,11 @@ export async function POST(request: NextRequest) {
     const user = await createUser({ name, email, phone, password, accountType, lang });
     const token = createSession(user);
     const response = NextResponse.json({ user });
-    response.cookies.set(SESSION_COOKIE, token, cookieOptions());
+    response.cookies.set(
+      SESSION_COOKIE,
+      token,
+      sessionCookieOptions(isSecureRequest(request.headers.get("x-forwarded-proto"), request.url))
+    );
     return response;
   } catch (error) {
     if (error instanceof AuthError && error.code === "EMAIL_EXISTS") {

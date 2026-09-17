@@ -1,20 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { authenticateUser, AuthError, createSession } from "@/lib/server-auth";
+import {
+  authenticateUser,
+  AuthError,
+  createSession,
+  isSecureRequest,
+  SESSION_COOKIE,
+  sessionCookieOptions,
+} from "@/lib/server-auth";
 
 export const runtime = "nodejs";
-
-const SESSION_COOKIE = "soukdz_session";
-const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
-
-function cookieOptions() {
-  return {
-    httpOnly: true,
-    sameSite: "lax" as const,
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: SESSION_TTL_SECONDS,
-  };
-}
 
 export async function POST(request: NextRequest) {
   const contentType = request.headers.get("content-type") ?? "";
@@ -43,7 +37,11 @@ export async function POST(request: NextRequest) {
     }
     const token = createSession(user);
     const response = NextResponse.json({ user });
-    response.cookies.set(SESSION_COOKIE, token, cookieOptions());
+    response.cookies.set(
+      SESSION_COOKIE,
+      token,
+      sessionCookieOptions(isSecureRequest(request.headers.get("x-forwarded-proto"), request.url))
+    );
     return response;
   } catch (error) {
     if (error instanceof AuthError) {
