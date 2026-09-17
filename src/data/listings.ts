@@ -491,11 +491,15 @@ export function searchListings(filters: ListingFilters): Listing[] {
   });
 }
 
-export type SortOrder = "newest" | "price_asc" | "price_desc";
+export type SortOrder = "newest" | "oldest" | "price_asc" | "price_desc";
 
 export function sortListings(listings: Listing[], sort: SortOrder): Listing[] {
   const copy = [...listings];
   switch (sort) {
+    case "oldest":
+      return copy.sort(
+        (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+      );
     case "price_asc":
       return copy.sort((a, b) => a.price - b.price);
     case "price_desc":

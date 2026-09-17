@@ -114,6 +114,7 @@ export default function FilterSidebar({
             className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
           >
             <option value="newest">{dictionary.filters.sortNewest}</option>
+            <option value="oldest">{dictionary.filters.sortOldest}</option>
             <option value="price_asc">{dictionary.filters.sortPriceAsc}</option>
             <option value="price_desc">{dictionary.filters.sortPriceDesc}</option>
           </select>

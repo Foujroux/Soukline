@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { getDictionary } from "@/lib/i18n";
 import { isLang, normalizeLang } from "@/lib/lang";
-import { searchListings, sortListings } from "@/data/listings";
-import { ListingGrid } from "@/components/ListingCard";
+import { searchListings, sortListings, type SortOrder } from "@/data/listings";
+import SearchResults from "@/components/SearchResults";
 import FilterSidebar from "@/components/layout/FilterSidebar";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 
@@ -45,7 +45,7 @@ export default async function SearchPage({ params, searchParams }: PageProps) {
       maxPrice: max,
       negotiableOnly: neg,
     }),
-    sort as "newest" | "price_asc" | "price_desc"
+    sort as SortOrder
   );
 
   const basePath = `/${resolved}/recherche`;
@@ -84,15 +84,20 @@ export default async function SearchPage({ params, searchParams }: PageProps) {
                     ? "Toutes les annonces"
                     : "جميع الإعلانات"}
               </h1>
-              <p className="mt-1 text-sm text-slate-500">
-                {listings.length === 1
-                  ? `${listings.length} ${resolved === "fr" ? "annonce trouvée" : "إعلان تم العثور عليها"}`
-                  : `${listings.length} ${resolved === "fr" ? "annonces trouvées" : "إعلان تم العثور عليها"}`}
-              </p>
             </div>
           </div>
 
-          <ListingGrid listings={listings} lang={resolved} dictionary={dictionary} />
+          <SearchResults
+            lang={resolved}
+            dictionary={dictionary}
+            staticListings={listings}
+            query={sp.q}
+            wilayaCode={w}
+            minPrice={min}
+            maxPrice={max}
+            negotiableOnly={neg}
+            sort={sort as SortOrder}
+          />
         </div>
       </div>
     </div>

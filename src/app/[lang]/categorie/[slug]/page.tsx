@@ -3,8 +3,8 @@ import type { Metadata } from "next";
 import { CATEGORIES, getCategory } from "@/data/categories";
 import { getDictionary } from "@/lib/i18n";
 import { isLang, normalizeLang } from "@/lib/lang";
-import { searchListings, sortListings } from "@/data/listings";
-import { ListingGrid } from "@/components/ListingCard";
+import { searchListings, sortListings, type SortOrder } from "@/data/listings";
+import SearchResults from "@/components/SearchResults";
 import FilterSidebar from "@/components/layout/FilterSidebar";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 
@@ -55,7 +55,7 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
       maxPrice: max,
       negotiableOnly: neg,
     }),
-    sort as "newest" | "price_asc" | "price_desc"
+    sort as SortOrder
   );
 
   const basePath = `/${resolved}/categorie/${slug}`;
@@ -92,13 +92,20 @@ export default async function CategoryPage({ params, searchParams }: PageProps) 
                 <span aria-hidden>{cat?.emoji ?? "📦"}</span>
                 {categoryName}
               </h1>
-              <p className="mt-1 text-sm text-slate-500">
-                {listings.length} {listings.length === 1 ? (resolved === "fr" ? "annonce" : "إعلان") : resolved === "fr" ? "annonces" : "إعلان"}
-              </p>
             </div>
           </div>
 
-          <ListingGrid listings={listings} lang={resolved} dictionary={dictionary} />
+          <SearchResults
+            lang={resolved}
+            dictionary={dictionary}
+            staticListings={listings}
+            categorySlug={slug}
+            wilayaCode={w}
+            minPrice={min}
+            maxPrice={max}
+            negotiableOnly={neg}
+            sort={sort as SortOrder}
+          />
         </div>
       </div>
     </div>
