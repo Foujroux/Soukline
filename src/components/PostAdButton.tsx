@@ -7,9 +7,10 @@ interface Props {
   lang: "fr" | "ar";
   postAdLabel: string;
   registerLabel: string;
+  fullWidth?: boolean;
 }
 
-export default function PostAdButton({ lang, postAdLabel, registerLabel }: Props) {
+export default function PostAdButton({ lang, postAdLabel, registerLabel, fullWidth }: Props) {
   const [open, setOpen] = useState(false);
   const [user, setUser] = useState<{ name: string; email: string } | null>(null);
   const [mounted, setMounted] = useState(false);
@@ -27,7 +28,8 @@ export default function PostAdButton({ lang, postAdLabel, registerLabel }: Props
   if (!mounted) return null;
 
   const className =
-    "flex items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-600/25 transition-all hover:shadow-xl hover:shadow-emerald-600/30 hover:brightness-110";
+    "flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-orange-600/25 transition-all hover:shadow-xl hover:shadow-orange-600/30 hover:brightness-110" +
+    (fullWidth ? " w-full sm:w-auto" : "");
 
   if (user) {
     return (

@@ -30,11 +30,13 @@ export default function Header({
 
           <div className="flex items-center gap-2">
             <LanguageSwitcher />
-            <PostAdButton
-              lang={lang}
-              postAdLabel={dictionary.nav.postAd}
-              registerLabel={dictionary.auth.createAccount}
-            />
+            <div className="hidden lg:block">
+              <PostAdButton
+                lang={lang}
+                postAdLabel={dictionary.nav.postAd}
+                registerLabel={dictionary.auth.createAccount}
+              />
+            </div>
             <UserMenu
               lang={lang}
               loginLabel={dictionary.nav.login}
@@ -46,7 +48,17 @@ export default function Header({
           </div>
         </div>
 
-        <SearchBarMobile lang={lang} dictionary={dictionary} />
+        <div className="lg:hidden">
+          <div className="mb-2">
+            <PostAdButton
+              lang={lang}
+              postAdLabel={dictionary.nav.postAd}
+              registerLabel={dictionary.auth.createAccount}
+              fullWidth
+            />
+          </div>
+          <SearchBarMobile lang={lang} dictionary={dictionary} />
+        </div>
 
         <div className="hidden gap-1 border-t border-slate-100 py-2 md:flex md:overflow-x-auto">
           {CATEGORIES.slice(0, 8).map((cat) => (
