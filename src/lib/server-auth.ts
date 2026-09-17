@@ -1,5 +1,6 @@
 import { createHmac, randomBytes, scrypt, timingSafeEqual } from "crypto";
 import { mkdir, readFile, writeFile } from "fs/promises";
+import { mkdirSync, readFileSync, writeFileSync } from "fs";
 import { tmpdir } from "os";
 import path from "path";
 import {
@@ -9,6 +10,7 @@ import {
 } from "@/lib/auth-types";
 
 const USERS_FILE = path.join(tmpdir(), "soukline", "users.json");
+const SECRET_FILE = path.join(tmpdir(), "soukline", ".secret");
 const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCK_DURATION_MS = 15 * 60 * 1000;
@@ -54,11 +56,27 @@ interface SessionPayload {
 let usersCache: StoredUser[] | null = null;
 
 function getSecret(): string {
-  const secret = process.env.SESSION_SECRET;
-  if (!secret || secret.length < 32) {
+  const fromEnv = process.env.SESSION_SECRET;
+  if (fromEnv && fromEnv.length >= 32) return fromEnv;
+
+  try {
+    mkdirSync(path.dirname(SECRET_FILE), { recursive: true });
+    try {
+      const existing = readFileSync(SECRET_FILE, "utf8").trim();
+      if (existing.length >= 32) return existing;
+    } catch {
+      // no persisted secret yet
+    }
+    const generated = randomBytes(48).toString("hex");
+    writeFileSync(SECRET_FILE, generated, { mode: 0o600 });
+    console.warn(
+      `[auth] SESSION_SECRET not configured - generated a per-host secret at ${SECRET_FILE}. ` +
+        "Set SESSION_SECRET (>= 32 chars) in your environment for stable multi-instance sessions."
+    );
+    return generated;
+  } catch {
     throw new Error("SESSION_SECRET is not configured. Add it to .env.local");
   }
-  return secret;
 }
 
 function toPublicUser(user: StoredUser): SessionUser {
