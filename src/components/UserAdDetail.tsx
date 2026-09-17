@@ -47,7 +47,7 @@ export default function UserAdDetail({ lang, dictionary, slug }: Props) {
             <div className="relative aspect-[16/10] flex items-center justify-center overflow-hidden">
               {ad.images.length > 0 ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={ad.images[0]} alt={title} className="h-full w-full object-cover" />
+                <img src={ad.images[0]} alt={title} fetchPriority="high" decoding="async" className="h-full w-full object-cover" />
               ) : (
                 <div className="grid h-full w-full place-items-center bg-gradient-to-br from-emerald-600 via-teal-500 to-emerald-700">
                   <span className="text-8xl opacity-90">{category?.emoji ?? "📦"}</span>

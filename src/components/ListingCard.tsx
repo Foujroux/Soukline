@@ -54,6 +54,8 @@ export function ListingCard({
           <img
             src={listing.images[0]}
             alt={title}
+            loading="lazy"
+            decoding="async"
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
         ) : (
@@ -62,6 +64,11 @@ export function ListingCard({
         {listing.featured && (
           <span className="absolute top-2 ltr:left-2 rtl:right-2 rounded-full bg-amber-400/95 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-amber-950 shadow">
             ★ {lang === "fr" ? "À la une" : "مميز"}
+          </span>
+        )}
+        {(listing as { accountType?: string }).accountType === "merchant" && (
+          <span className="absolute bottom-2 ltr:left-2 rtl:right-2 rounded-full bg-slate-900/80 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-amber-300 shadow">
+            {lang === "fr" ? "Pro" : "محترف"}
           </span>
         )}
       </div>

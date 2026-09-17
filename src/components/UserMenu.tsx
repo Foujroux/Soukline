@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { clearProfile, getProfile } from "@/lib/userAds";
+import { accountTypeLabel, clearProfile, getProfile } from "@/lib/client-auth";
+import type { SessionUser } from "@/lib/auth-types";
 
 interface Props {
   lang: "fr" | "ar";
@@ -21,13 +22,15 @@ export default function UserMenu({
   messagesLabel,
 }: Props) {
   const [open, setOpen] = useState(false);
-  const [user, setUser] = useState<{ name: string; email: string } | null>(null);
+  const [user, setUser] = useState<SessionUser | null>(null);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     const load = () => {
-      setUser(getProfile());
-      setMounted(true);
+      getProfile().then((u) => {
+        setUser(u);
+        setMounted(true);
+      });
     };
     load();
     window.addEventListener("soukdz:auth", load);
@@ -70,8 +73,19 @@ export default function UserMenu({
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
           <div className="absolute ltr:right-0 rtl:left-0 z-50 mt-2 w-56 rounded-2xl border border-slate-200 bg-white py-2 shadow-xl">
             <div className="border-b border-slate-100 px-4 py-3">
-              <p className="text-sm font-bold text-slate-900 truncate">{user.name}</p>
-              <p className="text-xs text-slate-500 truncate">{user.email}</p>
+              <p className="truncate text-sm font-bold text-slate-900">{user.name}</p>
+              <p className="truncate text-xs text-slate-500">{user.email}</p>
+              <span
+                className={`mt-1.5 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                  user.accountType === "admin"
+                    ? "bg-violet-100 text-violet-700"
+                    : user.accountType === "merchant"
+                      ? "bg-amber-100 text-amber-700"
+                      : "bg-emerald-100 text-emerald-700"
+                }`}
+              >
+                {accountTypeLabel(user.accountType, lang)}
+              </span>
             </div>
             <div className="py-1">
               <a
@@ -92,8 +106,9 @@ export default function UserMenu({
             <div className="border-t border-slate-100 pt-1">
               <button
                 type="button"
-                onClick={() => {
-                  clearProfile();
+                onClick={async () => {
+                  setOpen(false);
+                  await clearProfile();
                   window.location.href = `/${lang}`;
                 }}
                 className="flex w-full items-center gap-3 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50"

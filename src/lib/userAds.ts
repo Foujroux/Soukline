@@ -1,3 +1,6 @@
+import { sanitizeText, sanitizePhone, sanitizeEmail, sanitizeName } from "@/lib/sanitize";
+import type { AccountType } from "@/lib/auth-types";
+
 export interface UserAd {
   id: string;
   slug: string;
@@ -21,19 +24,11 @@ export interface UserAd {
   views: number;
   featured: boolean;
   negotiable: boolean;
+  accountType?: AccountType;
   images: string[];
 }
 
-export interface UserProfile {
-  name: string;
-  email: string;
-  phone: string;
-  lang: "fr" | "ar";
-  createdAt: string;
-}
-
 const AD_KEY = "soukdz_my_ads";
-const USER_KEY = "soukdz_user";
 const SAVED_KEY = "soukdz_saved";
 
 export function getMyAds(): UserAd[] {
@@ -45,6 +40,16 @@ export function getMyAds(): UserAd[] {
 }
 
 export function addMyAd(ad: UserAd): void {
+  ad.titleFr = sanitizeText(ad.titleFr, 90);
+  ad.titleAr = sanitizeText(ad.titleAr, 90);
+  ad.descriptionFr = sanitizeText(ad.descriptionFr, 2000);
+  ad.descriptionAr = sanitizeText(ad.descriptionAr, 2000);
+  ad.communeFr = sanitizeText(ad.communeFr, 80);
+  ad.communeAr = sanitizeText(ad.communeAr, 80);
+  ad.sellerFr = sanitizeName(ad.sellerFr);
+  ad.sellerAr = sanitizeName(ad.sellerAr);
+  ad.phone = sanitizePhone(ad.phone);
+  ad.email = sanitizeEmail(ad.email);
   const ads = getMyAds();
   ads.unshift(ad);
   localStorage.setItem(AD_KEY, JSON.stringify(ads));
@@ -61,24 +66,6 @@ export function getSavedIds(): string[] {
   } catch {
     return [];
   }
-}
-
-export function getProfile(): UserProfile | null {
-  try {
-    return JSON.parse(localStorage.getItem(USER_KEY) || "null");
-  } catch {
-    return null;
-  }
-}
-
-export function setProfile(profile: UserProfile): void {
-  localStorage.setItem(USER_KEY, JSON.stringify(profile));
-  window.dispatchEvent(new CustomEvent("soukdz:auth"));
-}
-
-export function clearProfile(): void {
-  localStorage.removeItem(USER_KEY);
-  window.dispatchEvent(new CustomEvent("soukdz:auth"));
 }
 
 export const CONDITIONS = {
@@ -133,7 +120,12 @@ export function addThreadMessage(threadId: string, text: string, fromMe: boolean
   const threads = getThreads();
   const thread = threads.find((t) => t.id === threadId);
   if (!thread) return;
-  thread.messages.push({ id: crypto.randomUUID(), fromMe, text, at: new Date().toISOString() });
+  thread.messages.push({
+    id: crypto.randomUUID(),
+    fromMe,
+    text: sanitizeText(text, 2000),
+    at: new Date().toISOString(),
+  });
   thread.updatedAt = new Date().toISOString();
   saveThreads(threads);
 }

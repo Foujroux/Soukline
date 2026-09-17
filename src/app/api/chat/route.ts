@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { sanitizeText } from "@/lib/sanitize";
 
 export const runtime = "nodejs";
 
@@ -30,12 +31,16 @@ export async function POST(req: Request) {
     );
   }
 
-  const contents = body.messages
-    .filter((m) => m.role === "user" || m.role === "assistant")
-    .map((m) => ({
-      role: m.role === "user" ? "user" : "model",
-      parts: [{ text: m.content }],
-    }));
+  const contents: { role: string; parts: { text: string }[] }[] = [];
+  for (const m of body.messages) {
+    if (m.role !== "user" && m.role !== "assistant") continue;
+    const text = sanitizeText(m.content, 4000);
+    if (!text) continue;
+    contents.push({ role: m.role === "user" ? "user" : "model", parts: [{ text }] });
+  }
+  if (contents.length === 0) {
+    return NextResponse.json({ error: "messages required" }, { status: 400 });
+  }
 
   const model = process.env.GEMINI_MODEL || "gemini-3.6-flash";
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;

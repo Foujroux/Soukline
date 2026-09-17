@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { CATEGORIES } from "@/data/categories";
 import { WILAYAS } from "@/data/wilayas";
 import { addMyAd, conditionLabel, CONDITIONS, type UserAd } from "@/lib/userAds";
+import { getCachedUser } from "@/lib/client-auth";
 import type { Dictionary } from "@/lib/dictionary";
 
 interface Props {
@@ -16,18 +17,24 @@ export default function PostAdForm({ lang, dictionary }: Props) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [images, setImages] = useState<string[]>([]);
+  const [optimizing, setOptimizing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
   async function handleFiles(files: FileList | null) {
-    if (!files) return;
-    const additions: string[] = [];
-    for (const file of Array.from(files)) {
-      if (additions.length + images.length >= 8) break;
-      const dataUrl = await compressImage(file);
-      if (dataUrl) additions.push(dataUrl);
+    if (!files || optimizing) return;
+    setOptimizing(true);
+    try {
+      const additions: string[] = [];
+      for (const file of Array.from(files)) {
+        if (additions.length + images.length >= 8) break;
+        const dataUrl = await compressImage(file);
+        if (dataUrl) additions.push(dataUrl);
+      }
+      setImages((prev) => [...prev, ...additions]);
+    } finally {
+      setOptimizing(false);
     }
-    setImages((prev) => [...prev, ...additions]);
   }
 
   function removeImage(index: number) {
@@ -45,7 +52,11 @@ export default function PostAdForm({ lang, dictionary }: Props) {
     const categorySlug = String(form.get("category") || "services");
     const conditionKey = String(form.get("condition") || "new");
     const negotiate = form.get("negotiable") === "on";
-    const profile = JSON.parse(localStorage.getItem("soukdz_user") || "null");
+    const profile = getCachedUser();
+    if (!profile) {
+      router.push(`/${lang}/connexion`);
+      return;
+    }
 
     const slug = createSlug(String(form.get("title") || ""), id);
 
@@ -74,6 +85,7 @@ export default function PostAdForm({ lang, dictionary }: Props) {
       views: 0,
       featured: false,
       negotiable: negotiate,
+      accountType: profile.accountType,
       images,
     };
 
@@ -251,10 +263,21 @@ export default function PostAdForm({ lang, dictionary }: Props) {
         <button
           type="button"
           onClick={() => fileRef.current?.click()}
-          className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-slate-500 transition-colors hover:border-emerald-400 hover:bg-emerald-50/50"
+          disabled={optimizing}
+          className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-slate-500 transition-colors hover:border-emerald-400 hover:bg-emerald-50/50 disabled:opacity-60"
         >
-          <CameraIcon />
-          <span className="text-sm font-semibold">{dictionary.create.uploadPhotos}</span>
+          {optimizing ? (
+            <SpinnerIcon />
+          ) : (
+            <CameraIcon />
+          )}
+          <span className="text-sm font-semibold">
+            {optimizing
+              ? lang === "fr"
+                ? "Optimisation des images..."
+                : "جارٍ تحسين الصور..."
+              : dictionary.create.uploadPhotos}
+          </span>
           <span className="text-xs">{dictionary.create.uploadHint}</span>
         </button>
         {images.length > 0 && (
@@ -266,7 +289,7 @@ export default function PostAdForm({ lang, dictionary }: Props) {
               {images.map((src, i) => (
                 <div key={i} className="group relative aspect-square overflow-hidden rounded-xl border border-slate-200">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={src} alt="" className="h-full w-full object-cover" />
+                  <img src={src} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
                   {i === 0 && (
                     <span className="absolute bottom-1 inset-x-0 mx-auto w-fit rounded-full bg-emerald-600 px-2 py-0.5 text-[9px] font-bold text-white">
                       {lang === "fr" ? "Principale" : "رئيسية"}
@@ -354,16 +377,27 @@ function createSlug(title: string, id: string): string {
   return `${base || "annonce"}-${id.slice(0, 6)}`;
 }
 
+const supportsWebp = (() => {
+  try {
+    return (
+      typeof document !== "undefined" &&
+      document.createElement("canvas").toDataURL("image/webp", 0.1).startsWith("data:image/webp")
+    );
+  } catch {
+    return false;
+  }
+})();
+
 function compressImage(file: File): Promise<string | null> {
   return new Promise((resolve) => {
     const reader = new FileReader();
     reader.onload = () => {
       const img = new Image();
       img.onload = () => {
-        const MAX = 900;
+        const MAX_EDGE = 1200;
         let { width, height } = img;
-        if (width > MAX || height > MAX) {
-          const ratio = Math.min(MAX / width, MAX / height);
+        if (width > MAX_EDGE || height > MAX_EDGE) {
+          const ratio = Math.min(MAX_EDGE / width, MAX_EDGE / height);
           width = Math.round(width * ratio);
           height = Math.round(height * ratio);
         }
@@ -373,7 +407,15 @@ function compressImage(file: File): Promise<string | null> {
         const ctx = canvas.getContext("2d");
         if (!ctx) return resolve(null);
         ctx.drawImage(img, 0, 0, width, height);
-        resolve(canvas.toDataURL("image/jpeg", 0.75));
+
+        const pixels = width * height;
+        const quality = pixels > 800 * 800 ? 0.72 : pixels > 400 * 400 ? 0.78 : 0.82;
+        const type = supportsWebp ? "image/webp" : "image/jpeg";
+        try {
+          resolve(canvas.toDataURL(type, quality));
+        } catch {
+          resolve(canvas.toDataURL("image/jpeg", 0.75));
+        }
       };
       img.onerror = () => resolve(null);
       img.src = String(reader.result);
@@ -388,6 +430,15 @@ function CameraIcon() {
     <svg className="h-8 w-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
       <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2v11z" />
       <circle cx="12" cy="13" r="4" />
+    </svg>
+  );
+}
+
+function SpinnerIcon() {
+  return (
+    <svg className="h-8 w-8 animate-spin" viewBox="0 0 24 24" fill="none">
+      <circle className="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+      <path className="opacity-90" d="M22 12a10 10 0 00-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
     </svg>
   );
 }

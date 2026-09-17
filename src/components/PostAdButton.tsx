@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getProfile } from "@/lib/userAds";
+import { getProfile } from "@/lib/client-auth";
+import type { SessionUser } from "@/lib/auth-types";
 
 interface Props {
   lang: "fr" | "ar";
@@ -12,13 +13,15 @@ interface Props {
 
 export default function PostAdButton({ lang, postAdLabel, registerLabel, fullWidth }: Props) {
   const [open, setOpen] = useState(false);
-  const [user, setUser] = useState<{ name: string; email: string } | null>(null);
+  const [user, setUser] = useState<SessionUser | null>(null);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
     const load = () => {
-      setUser(getProfile());
-      setMounted(true);
+      getProfile().then((u) => {
+        setUser(u);
+        setMounted(true);
+      });
     };
     load();
     window.addEventListener("soukdz:auth", load);

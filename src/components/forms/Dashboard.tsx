@@ -6,12 +6,12 @@ import { formatPrice, getListingBySlug } from "@/data/listings";
 import { getCategory } from "@/data/categories";
 import { getWilaya } from "@/data/wilayas";
 import {
-  clearProfile,
   getMyAds,
-  getProfile,
   getSavedIds,
   removeMyAd,
 } from "@/lib/userAds";
+import { accountTypeLabel, clearProfile, getProfile } from "@/lib/client-auth";
+import type { SessionUser } from "@/lib/auth-types";
 import type { Dictionary } from "@/lib/dictionary";
 
 interface Props {
@@ -19,14 +19,14 @@ interface Props {
   dictionary: Dictionary;
 }
 
-type TabKey = "overview" | "ads" | "saved" | "settings";
+type TabKey = "overview" | "ads" | "saved" | "moderation" | "settings";
 
 export default function Dashboard({ lang, dictionary }: Props) {
   const router = useRouter();
   const [tab, setTab] = useState<TabKey>("overview");
   const [vote, setVote] = useState(0);
+  const [profile, setProfile] = useState<SessionUser | null | undefined>(undefined);
 
-  const profile = getProfile();
   const myAds = getMyAds();
   const savedIds = getSavedIds();
   const savedListings = savedIds
@@ -37,6 +37,15 @@ export default function Dashboard({ lang, dictionary }: Props) {
     setVote((v) => v + 1);
   }, []);
 
+  useEffect(() => {
+    const load = () => {
+      getProfile().then(setProfile);
+    };
+    load();
+    window.addEventListener("soukdz:auth", load);
+    return () => window.removeEventListener("soukdz:auth", load);
+  }, []);
+
   const threads = useMemo(() => {
     try {
       return JSON.parse(localStorage.getItem("soukdz_threads") || "[]") as any[];
@@ -45,6 +54,14 @@ export default function Dashboard({ lang, dictionary }: Props) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vote, tab]);
+
+  if (profile === undefined) {
+    return (
+      <div className="grid place-items-center rounded-2xl border border-slate-200 bg-white p-12">
+        <p className="text-sm text-slate-500">{dictionary.common.loading}</p>
+      </div>
+    );
+  }
 
   if (!profile) {
     return (
@@ -72,6 +89,9 @@ export default function Dashboard({ lang, dictionary }: Props) {
     { key: "overview", label: dictionary.dashboard.statisticTitle, icon: "📊" },
     { key: "ads", label: dictionary.dashboard.myAds, icon: "📢", count: myAds.length },
     { key: "saved", label: dictionary.dashboard.saved, icon: "🔖", count: savedListings.length },
+    ...(profile.accountType === "admin"
+      ? [{ key: "moderation" as TabKey, label: lang === "fr" ? "Modération" : "الإشراف", icon: "🛡️", count: myAds.length }]
+      : []),
     { key: "settings", label: dictionary.dashboard.settings, icon: "⚙️" },
   ];
 
@@ -85,12 +105,25 @@ export default function Dashboard({ lang, dictionary }: Props) {
           <h1 className="text-2xl font-extrabold text-slate-900">
             {dictionary.dashboard.welcome}, {profile.name.split(" ")[0]} 👋
           </h1>
-          <p className="mt-1 text-sm text-slate-500">{profile.email}</p>
+          <p className="mt-1 flex items-center gap-2 text-sm text-slate-500">
+            {profile.email}
+            <span
+              className={`rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide ${
+                profile.accountType === "admin"
+                  ? "bg-violet-100 text-violet-700"
+                  : profile.accountType === "merchant"
+                    ? "bg-amber-100 text-amber-700"
+                    : "bg-emerald-100 text-emerald-700"
+              }`}
+            >
+              {accountTypeLabel(profile.accountType, lang)}
+            </span>
+          </p>
         </div>
         <button
           type="button"
-          onClick={() => {
-            clearProfile();
+          onClick={async () => {
+            await clearProfile();
             router.push(`/${lang}`);
           }}
           className="flex items-center gap-2 self-start rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-semibold text-slate-600 transition-colors hover:border-red-200 hover:bg-red-50 hover:text-red-600"
@@ -146,6 +179,17 @@ export default function Dashboard({ lang, dictionary }: Props) {
         )}
         {tab === "saved" && (
           <SavedAds lang={lang} saved={savedListings as any[]} dictionary={dictionary} />
+        )}
+        {tab === "moderation" && profile.accountType === "admin" && (
+          <ModerationAds
+            lang={lang}
+            myAds={myAds}
+            dictionary={dictionary}
+            onDelete={(id) => {
+              removeMyAd(id);
+              setVote((v) => v + 1);
+            }}
+          />
         )}
         {tab === "settings" && (
           <Settings lang={lang} dictionary={dictionary} profile={profile} />
@@ -243,7 +287,7 @@ function MyAds({
             <div className="grid h-20 w-20 shrink-0 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-emerald-600 to-teal-500 text-3xl">
               {ad.images[0] ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={ad.images[0]} alt="" className="h-full w-full object-cover" />
+                <img src={ad.images[0]} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
               ) : (
                 <span>{cat?.emoji ?? "📦"}</span>
               )}
@@ -256,6 +300,11 @@ function MyAds({
               <p className="mt-0.5 text-xs text-slate-500">
                 {cat ? (lang === "fr" ? cat.fr : cat.ar) : ""}
                 {wilaya ? ` · ${lang === "fr" ? wilaya.fr : wilaya.ar}` : ""}
+                {ad.accountType === "merchant" && (
+                  <span className="ml-2 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[9px] font-bold uppercase text-amber-700">
+                    {lang === "fr" ? "Marchand" : "تاجر"}
+                  </span>
+                )}
               </p>
             </div>
             <div className="flex shrink-0 gap-2">
@@ -302,7 +351,7 @@ function SavedAds({ lang, saved, dictionary }: { lang: "fr" | "ar"; saved: any[]
             <div className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-emerald-600 to-teal-500 text-2xl">
               {ad.images?.[0] ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={ad.images[0]} alt="" className="h-full w-full object-cover" />
+                <img src={ad.images[0]} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
               ) : (
                 <span>{cat?.emoji ?? "📦"}</span>
               )}
@@ -328,7 +377,7 @@ function Settings({
 }: {
   lang: "fr" | "ar";
   dictionary: Dictionary;
-  profile: { name: string; email: string; phone: string };
+  profile: SessionUser;
 }) {
   return (
     <div className="grid gap-4 sm:grid-cols-2">
@@ -345,9 +394,83 @@ function Settings({
         <p className="mt-1 text-slate-900">{profile.phone || "—"}</p>
       </div>
       <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+        <h3 className="text-sm font-bold text-slate-500">
+          {lang === "fr" ? "Type de compte" : "نوع الحساب"}
+        </h3>
+        <p className="mt-1 text-slate-900">{accountTypeLabel(profile.accountType, lang)}</p>
+      </div>
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
         <h3 className="text-sm font-bold text-slate-500">{dictionary.dashboard.lastLogin}</h3>
         <p className="mt-1 text-slate-900">{new Date().toLocaleDateString(lang === "ar" ? "ar-DZ" : "fr-DZ")}</p>
       </div>
+    </div>
+  );
+}
+
+function ModerationAds({
+  lang,
+  myAds,
+  dictionary,
+  onDelete,
+}: {
+  lang: "fr" | "ar";
+  myAds: any[];
+  dictionary: Dictionary;
+  onDelete: (id: string) => void;
+}) {
+  if (myAds.length === 0) {
+    return (
+      <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center">
+        <div className="text-4xl">🛡️</div>
+        <p className="mt-3 font-semibold text-slate-700">
+          {lang === "fr" ? "Aucune annonce à modérer." : "لا توجد إعلانات للإشراف عليها."}
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="rounded-xl bg-violet-50 px-4 py-2.5 text-xs font-medium text-violet-700">
+        {lang === "fr"
+          ? "Espace modération : supprimez les annonces non conformes publiées sur cet appareil."
+          : "مساحة الإشراف: احذف الإعلانات المخالفة المنشورة على هذا الجهاز."}
+      </p>
+      {myAds.map((ad) => {
+        const cat = getCategory(ad.categorySlug);
+        const title = lang === "fr" ? ad.titleFr : ad.titleAr || ad.titleFr;
+        return (
+          <div
+            key={ad.id}
+            className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center"
+          >
+            <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-emerald-600 to-teal-500 text-2xl">
+              {ad.images[0] ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={ad.images[0]} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
+              ) : (
+                <span>{cat?.emoji ?? "📦"}</span>
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <h3 className="truncate font-bold text-slate-900">{title}</h3>
+              <p className="mt-0.5 text-sm font-semibold text-emerald-700">{formatPrice(ad.price, lang)}</p>
+              <p className="mt-0.5 text-xs text-slate-500">
+                {ad.sellerFr || ad.sellerAr} · {ad.email}
+              </p>
+            </div>
+            <div className="flex shrink-0 gap-2">
+              <button
+                type="button"
+                onClick={() => onDelete(ad.id)}
+                className="rounded-xl border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50"
+              >
+                {dictionary.ad.delete}
+              </button>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }

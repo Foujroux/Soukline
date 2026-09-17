@@ -104,7 +104,13 @@ const fr = {
     loginLink: "Connectez-vous",
     registerLink: "Inscrivez-vous",
     orContinueWith: "ou continuez avec",
-    demoHint: "Démo : saisissez n'importe quelles informations pour continuer.",
+    accountType: "Type de compte",
+    accountUser: "Particulier",
+    accountMerchant: "Marchand",
+    accountUserHint: "Je vends mes affaires personnelles",
+    accountMerchantHint: "Je gère une boutique / entreprise",
+    demoHint:
+      "Comptes de démonstration : user@example.dz / user123 · merchant@example.dz / merchant123 · admin@example.dz / admin123",
   },
   dashboard: {
     title: "Mon compte",
@@ -307,7 +313,13 @@ const ar: typeof fr = {
     loginLink: "سجّل الدخول",
     registerLink: "أنشئ حسابًا",
     orContinueWith: "أو تابع باستخدام",
-    demoHint: "تجريبي: أدخل أي معلومات للمتابعة.",
+    accountType: "نوع الحساب",
+    accountUser: "فرد",
+    accountMerchant: "تاجر",
+    accountUserHint: "أبيع أغراضي الشخصية",
+    accountMerchantHint: "أدير متجرًا / مؤسسة",
+    demoHint:
+      "حسابات تجريبية: user@example.dz / user123 · merchant@example.dz / merchant123 · admin@example.dz / admin123",
   },
   dashboard: {
     title: "حسابي",

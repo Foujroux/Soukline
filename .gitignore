@@ -7,4 +7,5 @@
 npm-debug.log*
 .env*.local
 .env
+/data
 !.env.example*.tsbuildinfo
