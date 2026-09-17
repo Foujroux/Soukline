@@ -1,5 +1,6 @@
 import { createHmac, randomBytes, scrypt, timingSafeEqual } from "crypto";
 import { mkdir, readFile, writeFile } from "fs/promises";
+import { tmpdir } from "os";
 import path from "path";
 import {
   VALID_ACCOUNT_TYPES,
@@ -7,7 +8,7 @@ import {
   type SessionUser,
 } from "@/lib/auth-types";
 
-const USERS_FILE = path.join(process.cwd(), "data", "users.json");
+const USERS_FILE = path.join(tmpdir(), "soukline", "users.json");
 const SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCK_DURATION_MS = 15 * 60 * 1000;
