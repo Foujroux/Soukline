@@ -1,6 +1,7 @@
 import Logo from "@/components/Logo";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { SearchBar, SearchBarMobile } from "@/components/SearchBar";
+import PostAdButton from "@/components/PostAdButton";
 import UserMenu from "@/components/UserMenu";
 import { CATEGORIES } from "@/data/categories";
 import type { Dictionary } from "@/lib/dictionary";
@@ -29,13 +30,11 @@ export default function Header({
 
           <div className="flex items-center gap-2">
             <LanguageSwitcher />
-            <a
-              href={`/${lang}/deposer`}
-              className="hidden items-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-emerald-600/25 transition-all hover:shadow-xl hover:shadow-emerald-600/30 hover:brightness-110 sm:flex"
-            >
-              <PlusIcon />
-              {dictionary.nav.postAd}
-            </a>
+            <PostAdButton
+              lang={lang}
+              postAdLabel={dictionary.nav.postAd}
+              registerLabel={dictionary.auth.createAccount}
+            />
             <UserMenu
               lang={lang}
               loginLabel={dictionary.nav.login}
@@ -69,14 +68,6 @@ export default function Header({
         </div>
       </div>
     </header>
-  );
-}
-
-function PlusIcon() {
-  return (
-    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-      <path strokeLinecap="round" d="M12 5v14M5 12h14" />
-    </svg>
   );
 }
 
