@@ -3,7 +3,7 @@ import { isLang, normalizeLang } from "@/lib/lang";
 import { getDictionary } from "@/lib/i18n";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
-import ChatWidget from "@/components/ChatWidget";
+import ChatWidget from "@/components/ChatWidgetLoader";
 import SetLangDir from "@/components/SetLangDir";
 
 export async function generateMetadata({
@@ -35,14 +35,13 @@ export default async function RootLayout({
   const dictionary = getDictionary(resolved);
 
   return (
-    <>
-      <SetLangDir lang={resolved} />
+    <SetLangDir lang={resolved}>
       <div className="flex min-h-screen flex-col">
         <Header lang={resolved} dictionary={dictionary} />
         <main className="flex-1">{children}</main>
         <Footer lang={resolved} dictionary={dictionary} />
       </div>
       <ChatWidget lang={resolved} dictionary={dictionary} />
-    </>
+    </SetLangDir>
   );
 }

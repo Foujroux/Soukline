@@ -70,6 +70,7 @@ export default function FilterSidebar({
               name="min"
               inputMode="numeric"
               min="0"
+              aria-label={dictionary.filters.minPrice}
               placeholder={dictionary.filters.minPrice}
               defaultValue={min}
               className="w-full min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
@@ -82,6 +83,7 @@ export default function FilterSidebar({
               name="max"
               inputMode="numeric"
               min="0"
+              aria-label={dictionary.filters.maxPrice}
               placeholder={dictionary.filters.maxPrice}
               defaultValue={max}
               className="w-full min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"

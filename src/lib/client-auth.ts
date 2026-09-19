@@ -19,19 +19,29 @@ export async function getProfile(): Promise<SessionUser | null> {
   return refreshSession();
 }
 
+let inflight: Promise<SessionUser | null> | null = null;
+
 async function refreshSession(): Promise<SessionUser | null> {
+  if (inflight) return inflight;
+  inflight = (async () => {
+    try {
+      const res = await fetch("/api/auth/me", {
+        headers: { Accept: "application/json" },
+        credentials: "same-origin",
+      });
+      const data = res.ok ? ((await res.json()) as { user: SessionUser | null }) : null;
+      cached = data?.user ?? null;
+    } catch {
+      cached = null;
+    }
+    notify();
+    return cached;
+  })();
   try {
-    const res = await fetch("/api/auth/me", {
-      headers: { Accept: "application/json" },
-      credentials: "same-origin",
-    });
-    const data = res.ok ? ((await res.json()) as { user: SessionUser | null }) : null;
-    cached = data?.user ?? null;
-  } catch {
-    cached = null;
+    return await inflight;
+  } finally {
+    inflight = null;
   }
-  notify();
-  return cached;
 }
 
 export async function login(

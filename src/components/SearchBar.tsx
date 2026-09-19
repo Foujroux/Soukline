@@ -1,23 +1,4 @@
-"use client";
-
-import { useRouter } from "next/navigation";
-import { useState } from "react";
 import type { Dictionary } from "@/lib/dictionary";
-
-function useSearchNav(lang: string) {
-  const router = useRouter();
-
-  const navigate = (query: string, category: string, wilaya: string) => {
-    const params = new URLSearchParams();
-    if (query.trim()) params.set("q", query.trim());
-    if (category) params.set("cat", category);
-    if (wilaya) params.set("w", wilaya);
-    const qs = params.toString();
-    router.push(`/${lang}/recherche${qs ? `?${qs}` : ""}`);
-  };
-
-  return { navigate };
-}
 
 export function SearchBar({
   lang,
@@ -26,23 +7,17 @@ export function SearchBar({
   lang: string;
   dictionary: Dictionary;
 }) {
-  const [query, setQuery] = useState("");
-  const { navigate } = useSearchNav(lang);
-
   return (
     <form
+      action={`/${lang}/recherche`}
+      method="GET"
       className="group flex items-center overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm transition-all focus-within:border-emerald-500 focus-within:ring-2 focus-within:ring-emerald-500/20"
       role="search"
-      onSubmit={(e) => {
-        e.preventDefault();
-        navigate(query, "", "");
-      }}
     >
       <SearchIcon />
       <input
         type="search"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
+        name="q"
         placeholder={dictionary.nav.searchPlaceholder}
         className="h-11 w-full bg-transparent text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none"
         aria-label={dictionary.nav.searchPlaceholder}
@@ -64,23 +39,17 @@ export function SearchBarMobile({
   lang: string;
   dictionary: Dictionary;
 }) {
-  const [query, setQuery] = useState("");
-  const { navigate } = useSearchNav(lang);
-
   return (
     <form
+      action={`/${lang}/recherche`}
+      method="GET"
       className="relative flex items-center overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm lg:hidden"
       role="search"
-      onSubmit={(e) => {
-        e.preventDefault();
-        navigate(query, "", "");
-      }}
     >
       <SearchIcon />
       <input
         type="search"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
+        name="q"
         placeholder={dictionary.nav.searchPlaceholder}
         className="h-11 w-full bg-transparent text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none"
         aria-label={dictionary.nav.searchPlaceholder}

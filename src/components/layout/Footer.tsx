@@ -79,6 +79,7 @@ export default function Footer({
               <input
                 type="email"
                 required
+                aria-label={dictionary.footer.emailPlaceholder}
                 placeholder={dictionary.footer.emailPlaceholder}
                 className="w-full bg-transparent px-3 py-2.5 text-sm text-white placeholder:text-slate-500 focus:outline-none"
               />
@@ -97,7 +98,7 @@ export default function Footer({
             © {new Date().getFullYear()} Souk.dz. {dictionary.footer.rights}
           </p>
           <p className="flex items-center gap-1.5">
-            <span className="text-emerald-500">❤</span>
+            <span className="text-emerald-500" aria-hidden>❤</span>
             {dictionary.footer.madeIn}
           </p>
         </div>

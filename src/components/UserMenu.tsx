@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { accountTypeLabel, clearProfile, getProfile } from "@/lib/client-auth";
+import { accountTypeLabel, clearProfile, getCachedUser, getProfile } from "@/lib/client-auth";
 import type { SessionUser } from "@/lib/auth-types";
 
 interface Props {
@@ -22,22 +22,16 @@ export default function UserMenu({
   messagesLabel,
 }: Props) {
   const [open, setOpen] = useState(false);
-  const [user, setUser] = useState<SessionUser | null>(null);
-  const [mounted, setMounted] = useState(false);
+  const [user, setUser] = useState<SessionUser | null>(getCachedUser());
 
   useEffect(() => {
     const load = () => {
-      getProfile().then((u) => {
-        setUser(u);
-        setMounted(true);
-      });
+      getProfile().then(setUser);
     };
     load();
     window.addEventListener("soukdz:auth", load);
     return () => window.removeEventListener("soukdz:auth", load);
   }, []);
-
-  if (!mounted) return null;
 
   if (!user) {
     return (
@@ -93,14 +87,15 @@ export default function UserMenu({
                 className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-emerald-50 hover:text-emerald-700"
                 onClick={() => setOpen(false)}
               >
-                <span>📢</span> {myAdsLabel}
+                <span aria-hidden>📢</span>
+                {myAdsLabel}
               </a>
               <a
                 href={`/${lang}/messages`}
                 className="flex items-center gap-3 px-4 py-2.5 text-sm text-slate-700 hover:bg-emerald-50 hover:text-emerald-700"
                 onClick={() => setOpen(false)}
               >
-                <span>💬</span> {messagesLabel}
+                <span aria-hidden>💬</span> {messagesLabel}
               </a>
             </div>
             <div className="border-t border-slate-100 pt-1">

@@ -298,7 +298,7 @@ export default function PostAdForm({ lang, dictionary }: Props) {
                   <button
                     type="button"
                     onClick={() => removeImage(i)}
-                    aria-label="Remove"
+                    aria-label={lang === "ar" ? "حذف الصورة" : "Supprimer l'image"}
                     className="absolute top-1 ltr:right-1 rtl:left-1 grid h-6 w-6 place-items-center rounded-full bg-red-500 text-xs font-bold text-white opacity-0 transition-opacity group-hover:opacity-100"
                   >
                     ✕

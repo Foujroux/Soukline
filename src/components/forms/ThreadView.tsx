@@ -131,6 +131,7 @@ export default function ThreadView({ lang, dictionary, id }: Props) {
                 handleSend();
               }
             }}
+            aria-label={lang === "ar" ? "كتابة رسالة" : "Écrire un message"}
             placeholder={
               lang === "fr"
                 ? "Écrivez votre message..."

@@ -84,6 +84,7 @@ export default function AdDetailClient({ lang, dictionary, listing }: Props) {
           <textarea
             value={messageText}
             onChange={(e) => setMessageText(e.target.value)}
+            aria-label={lang === "fr" ? "Message au vendeur" : "رسالتك إلى البائع"}
             placeholder={
               lang === "fr"
                 ? "Écrivez votre message au vendeur..."

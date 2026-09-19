@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getProfile } from "@/lib/client-auth";
+import { getCachedUser, getProfile } from "@/lib/client-auth";
 import type { SessionUser } from "@/lib/auth-types";
 
 interface Props {
@@ -13,22 +13,16 @@ interface Props {
 
 export default function PostAdButton({ lang, postAdLabel, registerLabel, fullWidth }: Props) {
   const [open, setOpen] = useState(false);
-  const [user, setUser] = useState<SessionUser | null>(null);
-  const [mounted, setMounted] = useState(false);
+  const [user, setUser] = useState<SessionUser | null>(getCachedUser());
 
   useEffect(() => {
     const load = () => {
-      getProfile().then((u) => {
-        setUser(u);
-        setMounted(true);
-      });
+      getProfile().then(setUser);
     };
     load();
     window.addEventListener("soukdz:auth", load);
     return () => window.removeEventListener("soukdz:auth", load);
   }, []);
-
-  if (!mounted) return null;
 
   const className =
     "flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 px-5 py-2.5 text-sm font-bold text-white shadow-lg shadow-orange-600/25 transition-all hover:shadow-xl hover:shadow-orange-600/30 hover:brightness-110" +

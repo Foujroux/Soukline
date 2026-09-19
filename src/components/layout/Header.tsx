@@ -19,9 +19,6 @@ export default function Header({
         <div className="flex h-16 items-center justify-between gap-4">
           <div className="flex items-center gap-6">
             <Logo lang={lang} dictionary={dictionary} />
-            <nav className="hidden items-center gap-1 lg:flex">
-              <LanguageSwitcher />
-            </nav>
           </div>
 
           <div className="hidden flex-1 max-w-xl lg:block">

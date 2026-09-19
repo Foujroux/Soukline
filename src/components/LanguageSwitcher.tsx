@@ -23,20 +23,26 @@ export default function LanguageSwitcher() {
       role="group"
       aria-label="Language"
     >
-      {LANGS.map((l) => (
-        <button
-          key={l}
-          type="button"
-          onClick={() => switchTo(l)}
-          className={`rounded-full px-3 py-1 text-sm font-semibold transition-colors ${
-            pathname?.startsWith(`/${l}`) || (!pathname?.startsWith("/fr") && !pathname?.startsWith("/ar") && l === "fr")
-              ? "bg-emerald-600 text-white shadow"
-              : "text-slate-600 hover:bg-slate-100"
-          }`}
-        >
-          {LANG_META[l].nativeLabel}
-        </button>
-      ))}
+      {LANGS.map((l) => {
+        const active =
+          pathname?.startsWith(`/${l}`) ||
+          (!pathname?.startsWith("/fr") && !pathname?.startsWith("/ar") && l === "fr");
+        return (
+          <button
+            key={l}
+            type="button"
+            onClick={() => switchTo(l)}
+            aria-pressed={active}
+            className={`rounded-full px-3 py-1 text-sm font-semibold transition-colors ${
+              active
+                ? "bg-emerald-600 text-white shadow"
+                : "text-slate-600 hover:bg-slate-100"
+            }`}
+          >
+            {LANG_META[l].nativeLabel}
+          </button>
+        );
+      })}
     </div>
   );
 }
