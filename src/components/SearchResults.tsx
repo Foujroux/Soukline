@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { getMyAds } from "@/lib/userAds";
+import { fetchPublicAds } from "@/lib/userAds";
 import { ListingGrid } from "@/components/ListingCard";
 import { normalizeSearchText } from "@/data/listings";
 import type { Listing, SortOrder } from "@/data/listings";
@@ -35,9 +35,19 @@ export default function SearchResults({
   const [userListings, setUserListings] = useState<Listing[]>([]);
 
   useEffect(() => {
+    let cancelled = false;
     const q = normalizeSearchText(query ?? "");
-    const userAds = getMyAds()
-      .filter((l) => {
+    const load = async () => {
+      const ads = await fetchPublicAds({
+        categorySlug,
+        query,
+        wilayaCode,
+        minPrice,
+        maxPrice,
+        negotiableOnly,
+      });
+      if (cancelled) return;
+      const userAds = ads.filter((l) => {
         if (categorySlug && categorySlug !== "tous" && l.categorySlug !== categorySlug)
           return false;
         if (wilayaCode && l.wilayaCode !== wilayaCode) return false;
@@ -51,9 +61,13 @@ export default function SearchResults({
           if (!haystack.includes(q)) return false;
         }
         return true;
-      })
-      .map((ad) => ad as Listing);
-    setUserListings(userAds);
+      });
+      setUserListings(userAds as Listing[]);
+    };
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, [categorySlug, query, wilayaCode, minPrice, maxPrice, negotiableOnly]);
 
   const allListings = useMemo(() => {

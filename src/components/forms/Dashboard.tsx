@@ -2,13 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { formatPrice, getListingBySlug } from "@/data/listings";
+import { formatPrice, getListingBySlug, type Listing } from "@/data/listings";
 import { getCategory } from "@/data/categories";
 import { getWilaya } from "@/data/wilayas";
 import {
-  getMyAds,
+  deleteMyAd,
+  fetchMyAds,
   getSavedIds,
-  removeMyAd,
 } from "@/lib/userAds";
 import { accountTypeLabel, clearProfile, getProfile } from "@/lib/client-auth";
 import type { SessionUser } from "@/lib/auth-types";
@@ -26,12 +26,16 @@ export default function Dashboard({ lang, dictionary }: Props) {
   const [tab, setTab] = useState<TabKey>("overview");
   const [vote, setVote] = useState(0);
   const [profile, setProfile] = useState<SessionUser | null | undefined>(undefined);
+  const [myAds, setMyAds] = useState<Listing[]>([]);
 
-  const myAds = getMyAds();
   const savedIds = getSavedIds();
-  const savedListings = savedIds
-    .map((id) => getListingBySlug(id) ?? getMyAds().find((a) => a.id === id))
-    .filter(Boolean);
+  const savedListings = useMemo(
+    () =>
+      savedIds
+        .map((id) => getListingBySlug(id) ?? myAds.find((a) => a.id === id))
+        .filter(Boolean),
+    [savedIds, myAds]
+  );
 
   useEffect(() => {
     setVote((v) => v + 1);
@@ -45,6 +49,20 @@ export default function Dashboard({ lang, dictionary }: Props) {
     window.addEventListener("soukdz:auth", load);
     return () => window.removeEventListener("soukdz:auth", load);
   }, []);
+
+  useEffect(() => {
+    if (!profile) {
+      setMyAds([]);
+      return;
+    }
+    let cancelled = false;
+    fetchMyAds().then((ads) => {
+      if (!cancelled) setMyAds(ads as unknown as Listing[]);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [profile]);
 
   const threads = useMemo(() => {
     try {
@@ -170,9 +188,15 @@ export default function Dashboard({ lang, dictionary }: Props) {
             lang={lang}
             myAds={myAds}
             dictionary={dictionary}
-            onDelete={(id) => {
-              removeMyAd(id);
-              router.refresh();
+            onDelete={async (id) => {
+              const ad = myAds.find((a) => a.id === id);
+              if (!ad) return;
+              try {
+                await deleteMyAd(ad.slug);
+                setMyAds((prev) => prev.filter((a) => a.id !== id));
+              } catch {
+                // keep the ad so the user can retry
+              }
               setVote((v) => v + 1);
             }}
           />
@@ -185,8 +209,15 @@ export default function Dashboard({ lang, dictionary }: Props) {
             lang={lang}
             myAds={myAds}
             dictionary={dictionary}
-            onDelete={(id) => {
-              removeMyAd(id);
+            onDelete={async (id) => {
+              const ad = myAds.find((a) => a.id === id);
+              if (!ad) return;
+              try {
+                await deleteMyAd(ad.slug);
+                setMyAds((prev) => prev.filter((a) => a.id !== id));
+              } catch {
+                // keep the ad so the user can retry
+              }
               setVote((v) => v + 1);
             }}
           />

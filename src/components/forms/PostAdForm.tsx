@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CATEGORIES } from "@/data/categories";
 import { WILAYAS } from "@/data/wilayas";
-import { addMyAd, conditionLabel, CONDITIONS, type UserAd } from "@/lib/userAds";
+import { publishAd, conditionLabel, CONDITIONS, type UserAd } from "@/lib/userAds";
 import { getCachedUser, getProfile } from "@/lib/client-auth";
 import type { Dictionary } from "@/lib/dictionary";
 
@@ -20,6 +20,7 @@ export default function PostAdForm({ lang, dictionary }: Props) {
   const [optimizing, setOptimizing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -53,12 +54,12 @@ export default function PostAdForm({ lang, dictionary }: Props) {
     setImages((prev) => prev.filter((_, i) => i !== index));
   }
 
-  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setSubmitting(true);
+    setSubmitError(null);
     const form = new FormData(e.currentTarget);
 
-    const id = crypto.randomUUID();
     const wilayaCode = Number(form.get("wilaya") || 16);
     const price = Number(form.get("price") || 0);
     const categorySlug = String(form.get("category") || "services");
@@ -70,11 +71,9 @@ export default function PostAdForm({ lang, dictionary }: Props) {
       return;
     }
 
-    const slug = createSlug(String(form.get("title") || ""), id);
-
     const ad: UserAd = {
-      id,
-      slug,
+      id: crypto.randomUUID(),
+      slug: "",
       categorySlug,
       titleFr: lang === "fr" ? String(form.get("title")) : "",
       titleAr: lang === "ar" ? String(form.get("title")) : "",
@@ -101,10 +100,23 @@ export default function PostAdForm({ lang, dictionary }: Props) {
       images,
     };
 
-    addMyAd(ad);
-    setSubmitting(false);
-    setSubmitted(true);
-    setTimeout(() => router.push(`/${lang}/compte?tab=ads`), 1200);
+    try {
+      await publishAd(ad);
+      setSubmitting(false);
+      setSubmitted(true);
+      setTimeout(() => router.push(`/${lang}/compte?tab=ads`), 1200);
+    } catch (err) {
+      setSubmitting(false);
+      setSubmitError(
+        err instanceof Error && err.message === "UNAUTHORIZED"
+          ? lang === "fr"
+            ? "Votre session a expiré. Veuillez vous reconnecter."
+            : "انتهت جلستك. يرجى تسجيل الدخول من جديد."
+          : lang === "fr"
+            ? "Échec de la publication. Réessayez dans un instant."
+            : "تعذّر نشر الإعلان. حاول مجددًا بعد قليل."
+      );
+    }
   }
 
   if (submitted) {
@@ -368,6 +380,12 @@ export default function PostAdForm({ lang, dictionary }: Props) {
         </div>
       </section>
 
+      {submitError && (
+        <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+          {submitError}
+        </p>
+      )}
+
       <button
         type="submit"
         disabled={submitting}
@@ -377,16 +395,6 @@ export default function PostAdForm({ lang, dictionary }: Props) {
       </button>
     </form>
   );
-}
-
-function createSlug(title: string, id: string): string {
-  const base = title
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, "")
-    .trim()
-    .replace(/\s+/g, "-")
-    .slice(0, 60);
-  return `${base || "annonce"}-${id.slice(0, 6)}`;
 }
 
 const supportsWebp = (() => {

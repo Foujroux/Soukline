@@ -277,6 +277,17 @@ export async function getUserFromSessionToken(token: string | undefined | null):
   return user ? toPublicUser(user) : null;
 }
 
+export async function getUserFromRequest(request: Request): Promise<SessionUser | null> {
+  const cookieHeader = request.headers.get("cookie") ?? "";
+  const token = cookieHeader
+    .split(";")
+    .find((c) => c.trim().startsWith(`${SESSION_COOKIE}=`))
+    ?.split("=")
+    .slice(1)
+    .join("=");
+  return getUserFromSessionToken(token ? decodeURIComponent(token.trim()) : null);
+}
+
 function sign(payloadPart: string): string {
   return createHmac("sha256", getSecret()).update(payloadPart).digest("base64url");
 }

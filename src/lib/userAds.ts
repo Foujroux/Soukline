@@ -1,4 +1,4 @@
-import { sanitizeText, sanitizePhone, sanitizeEmail, sanitizeName } from "@/lib/sanitize";
+import { sanitizeText } from "@/lib/sanitize";
 import type { AccountType } from "@/lib/auth-types";
 
 export interface UserAd {
@@ -30,8 +30,9 @@ export interface UserAd {
 
 const AD_KEY = "soukdz_my_ads";
 const SAVED_KEY = "soukdz_saved";
+const MIGRATION_KEY = "soukdz_ad_migrated";
 
-export function getMyAds(): UserAd[] {
+function getLocalAds(): UserAd[] {
   try {
     return JSON.parse(localStorage.getItem(AD_KEY) || "[]");
   } catch {
@@ -39,25 +40,120 @@ export function getMyAds(): UserAd[] {
   }
 }
 
-export function addMyAd(ad: UserAd): void {
-  ad.titleFr = sanitizeText(ad.titleFr, 90);
-  ad.titleAr = sanitizeText(ad.titleAr, 90);
-  ad.descriptionFr = sanitizeText(ad.descriptionFr, 2000);
-  ad.descriptionAr = sanitizeText(ad.descriptionAr, 2000);
-  ad.communeFr = sanitizeText(ad.communeFr, 80);
-  ad.communeAr = sanitizeText(ad.communeAr, 80);
-  ad.sellerFr = sanitizeName(ad.sellerFr);
-  ad.sellerAr = sanitizeName(ad.sellerAr);
-  ad.phone = sanitizePhone(ad.phone);
-  ad.email = sanitizeEmail(ad.email);
-  const ads = getMyAds();
-  ads.unshift(ad);
-  localStorage.setItem(AD_KEY, JSON.stringify(ads));
+function clearLocalAds(): void {
+  try {
+    localStorage.removeItem(AD_KEY);
+  } catch {
+    // ignore
+  }
 }
 
-export function removeMyAd(id: string): void {
-  const ads = getMyAds().filter((a) => a.id !== id);
-  localStorage.setItem(AD_KEY, JSON.stringify(ads));
+async function migrateLegacyAds(): Promise<boolean> {
+  const local = getLocalAds();
+  if (local.length === 0) return false;
+  if (localStorage.getItem(MIGRATION_KEY) === "1") {
+    clearLocalAds();
+    return false;
+  }
+  let ok = true;
+  await Promise.all(
+    local.map(async (ad) => {
+      try {
+        await publishAd(ad);
+      } catch {
+        ok = false;
+      }
+    })
+  );
+  if (ok) {
+    try {
+      localStorage.setItem(MIGRATION_KEY, "1");
+    } catch {
+      // ignore
+    }
+    clearLocalAds();
+    return true;
+  }
+  return false;
+}
+
+export async function fetchPublicAds(filters?: {
+  categorySlug?: string;
+  query?: string;
+  wilayaCode?: number;
+  minPrice?: number;
+  maxPrice?: number;
+  negotiableOnly?: boolean;
+}): Promise<UserAd[]> {
+  const params = new URLSearchParams();
+  if (filters?.categorySlug) params.set("category", filters.categorySlug);
+  if (filters?.query) params.set("q", filters.query);
+  if (filters?.wilayaCode != null) params.set("w", String(filters.wilayaCode));
+  if (filters?.minPrice != null) params.set("min", String(filters.minPrice));
+  if (filters?.maxPrice != null) params.set("max", String(filters.maxPrice));
+  if (filters?.negotiableOnly) params.set("neg", "1");
+  const qs = params.toString();
+  try {
+    const res = await fetch(`/api/ads${qs ? `?${qs}` : ""}`, {
+      headers: { Accept: "application/json" },
+      credentials: "same-origin",
+    });
+    const data = (await res.json().catch(() => null)) as { ads?: UserAd[] } | null;
+    return Array.isArray(data?.ads) ? data.ads : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchMyAds(): Promise<UserAd[]> {
+  await migrateLegacyAds();
+  try {
+    const res = await fetch("/api/ads/mine", {
+      headers: { Accept: "application/json" },
+      credentials: "same-origin",
+    });
+    const data = (await res.json().catch(() => null)) as { ads?: UserAd[] } | null;
+    return Array.isArray(data?.ads) ? data.ads : [];
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchAdBySlug(slug: string): Promise<UserAd | null> {
+  try {
+    const res = await fetch(`/api/ads/${encodeURIComponent(slug)}`, {
+      headers: { Accept: "application/json" },
+      credentials: "same-origin",
+    });
+    const data = (await res.json().catch(() => null)) as { ad?: UserAd } | null;
+    return data?.ad ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export async function publishAd(ad: UserAd): Promise<UserAd> {
+  const res = await fetch("/api/ads", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    credentials: "same-origin",
+    body: JSON.stringify(ad),
+  });
+  const data = (await res.json().catch(() => null)) as { ad?: UserAd; error?: string } | null;
+  if (!res.ok || !data?.ad) {
+    throw new Error(data?.error === "UNAUTHORIZED" ? "UNAUTHORIZED" : "FAILED_TO_PUBLISH");
+  }
+  return data.ad;
+}
+
+export async function deleteMyAd(slug: string): Promise<void> {
+  const res = await fetch(`/api/ads/${encodeURIComponent(slug)}`, {
+    method: "DELETE",
+    credentials: "same-origin",
+  });
+  if (!res.ok) {
+    throw new Error("DELETE_FAILED");
+  }
 }
 
 export function getSavedIds(): string[] {

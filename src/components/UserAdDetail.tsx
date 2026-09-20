@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getMyAds } from "@/lib/userAds";
+import { fetchAdBySlug } from "@/lib/userAds";
 import { formatPrice, type Listing } from "@/data/listings";
 import { getCategory } from "@/data/categories";
 import { getWilaya } from "@/data/wilayas";
@@ -21,9 +21,15 @@ export default function UserAdDetail({ lang, dictionary, slug }: Props) {
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    const found = getMyAds().find((a) => a.slug === slug);
-    setAd((found as Listing) ?? null);
-    setLoaded(true);
+    let cancelled = false;
+    fetchAdBySlug(slug).then((found) => {
+      if (cancelled) return;
+      setAd((found as Listing) ?? null);
+      setLoaded(true);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [slug]);
 
   if (!loaded) return null;
