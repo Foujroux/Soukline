@@ -1,11 +1,11 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { CATEGORIES } from "@/data/categories";
 import { WILAYAS } from "@/data/wilayas";
 import { addMyAd, conditionLabel, CONDITIONS, type UserAd } from "@/lib/userAds";
-import { getCachedUser } from "@/lib/client-auth";
+import { getCachedUser, getProfile } from "@/lib/client-auth";
 import type { Dictionary } from "@/lib/dictionary";
 
 interface Props {
@@ -20,6 +20,18 @@ export default function PostAdForm({ lang, dictionary }: Props) {
   const [optimizing, setOptimizing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    getProfile().then((profile) => {
+      if (!cancelled && !profile) {
+        router.replace(`/${lang}/connexion`);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [router, lang]);
 
   async function handleFiles(files: FileList | null) {
     if (!files || optimizing) return;

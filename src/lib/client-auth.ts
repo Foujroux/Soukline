@@ -24,17 +24,37 @@ let inflight: Promise<SessionUser | null> | null = null;
 async function refreshSession(): Promise<SessionUser | null> {
   if (inflight) return inflight;
   inflight = (async () => {
+    let next: SessionUser | null = null;
     try {
       const res = await fetch("/api/auth/me", {
         headers: { Accept: "application/json" },
         credentials: "same-origin",
+        cache: "no-store",
       });
-      const data = res.ok ? ((await res.json()) as { user: SessionUser | null }) : null;
-      cached = data?.user ?? null;
+
+      if (res.status === 401) {
+        // The me endpoint returns 401 when there is no valid session. This is
+        // the expected "logged out" signal, not an error.
+        next = null;
+      } else if (res.ok) {
+        const data = (await res
+          .json()
+          .catch(() => null)) as { user?: SessionUser | null } | null;
+        next = data?.user ?? null;
+      } else {
+        // Unexpected status (e.g. 5xx) — keep the last known session state
+        // instead of flashing authenticated users to a logged-out UI.
+        return cached ?? null;
+      }
     } catch {
-      cached = null;
+      // Network failure — keep the last known state, do not log out.
+      return cached ?? null;
     }
-    notify();
+
+    if (next !== cached) {
+      cached = next;
+      notify();
+    }
     return cached;
   })();
   try {
