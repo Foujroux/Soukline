@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserFromRequest } from "@/lib/server-auth";
 import { addAd, listAds } from "@/lib/server-ads";
-import { normalizeSearchText } from "@/data/listings";
+import { normalizeSearchText, sortListings, type SortOrder } from "@/data/listings";
 import type { UserAd } from "@/lib/userAds";
 
 export const runtime = "nodejs";
@@ -41,13 +41,21 @@ function applyFilters(
   });
 }
 
+const SORT_ORDERS: SortOrder[] = ["newest", "oldest", "price_asc", "price_desc"];
+
+function isSortOrder(value: string | null): value is SortOrder {
+  return value !== null && (SORT_ORDERS as string[]).includes(value);
+}
+
 export async function GET(request: NextRequest) {
   const ads = await listAds();
   const publicAds = applyFilters(
     ads.map(({ ownerId: _ownerId, ...pub }) => pub),
     request.nextUrl.searchParams
   );
-  return NextResponse.json({ ads: publicAds });
+  const sortParam = request.nextUrl.searchParams.get("sort");
+  const sort: SortOrder = isSortOrder(sortParam) ? sortParam : "newest";
+  return NextResponse.json({ ads: sortListings(publicAds, sort) });
 }
 
 export async function POST(request: NextRequest) {

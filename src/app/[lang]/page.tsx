@@ -1,9 +1,10 @@
 import { isLang, normalizeLang } from "@/lib/lang";
 import { getDictionary } from "@/lib/i18n";
 import { CATEGORIES } from "@/data/categories";
-import { getFeaturedListings, getRecentListings } from "@/data/listings";
+import { getFeaturedListings, LISTINGS } from "@/data/listings";
 import { ListingGrid } from "@/components/ListingCard";
 import { WILAYAS } from "@/data/wilayas";
+import HomeLatest from "@/components/HomeLatest";
 
 export const metadata = {
   title: "Souk.dz",
@@ -22,7 +23,6 @@ export default async function HomePage({
   const resolved = (isLang(lang) ? lang : normalizeLang(lang)) as "fr" | "ar";
   const dictionary = getDictionary(resolved);
   const featured = getFeaturedListings();
-  const recent = getRecentListings(8);
 
   return (
     <div>
@@ -93,22 +93,23 @@ export default async function HomePage({
         />
       </section>
 
-      {/* Recent */}
+      {/* Latest ads */}
       <section className="mx-auto max-w-7xl px-4 pb-16">
         <div className="mb-6 flex items-end justify-between">
           <div>
             <h2 className="text-2xl font-extrabold text-slate-900">
               {dictionary.hero.recentTitle}
             </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              {dictionary.hero.recentSubtitle}
+            </p>
           </div>
-          <a
-            href={`/${resolved}/recherche`}
-            className="text-sm font-semibold text-emerald-700 hover:text-emerald-800"
-          >
-            {dictionary.hero.viewAll} →
-          </a>
         </div>
-        <ListingGrid listings={recent} lang={resolved} dictionary={dictionary} />
+        <HomeLatest
+          lang={resolved}
+          dictionary={dictionary}
+          staticListings={LISTINGS}
+        />
       </section>
 
       {/* Wilayas strip */}

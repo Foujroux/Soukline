@@ -34,6 +34,7 @@ const fr = {
     featuredTitle: "Annonces à la une",
     featuredSubtitle: "Les annonces les plus populaires du moment",
     recentTitle: "Dernières annonces",
+    recentSubtitle: "Publiez gratuitement et découvrez les nouveautés",
     viewAll: "Voir tout",
   },
   categories: {
@@ -243,6 +244,7 @@ const ar: typeof fr = {
     featuredTitle: "إعلانات مميزة",
     featuredSubtitle: "الإعلانات الأكثر رواجًا في الوقت الحالي",
     recentTitle: "أحدث الإعلانات",
+    recentSubtitle: "انشر مجانًا واكتشف كل ما هو جديد",
     viewAll: "عرض الكل",
   },
   categories: {
