@@ -473,6 +473,14 @@ export interface ListingFilters {
   negotiableOnly?: boolean;
 }
 
+export function normalizeSearchText(value: string): string {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+
 export function searchListings(filters: ListingFilters): Listing[] {
   return LISTINGS.filter((l) => {
     if (filters.categorySlug && filters.categorySlug !== "tous" && l.categorySlug !== filters.categorySlug)
@@ -482,9 +490,10 @@ export function searchListings(filters: ListingFilters): Listing[] {
     if (filters.maxPrice != null && !Number.isNaN(filters.maxPrice) && l.price > filters.maxPrice) return false;
     if (filters.negotiableOnly && !l.negotiable) return false;
     if (filters.query) {
-      const q = filters.query.toLowerCase().trim();
-      const haystack =
-        `${l.titleFr} ${l.titleAr} ${l.descriptionFr} ${l.descriptionAr} ${l.communeFr} ${l.communeAr} ${l.sellerFr} ${l.sellerAr}`.toLowerCase();
+      const q = normalizeSearchText(filters.query);
+      const haystack = normalizeSearchText(
+        `${l.titleFr} ${l.titleAr} ${l.descriptionFr} ${l.descriptionAr} ${l.communeFr} ${l.communeAr} ${l.sellerFr} ${l.sellerAr}`
+      );
       if (!haystack.includes(q)) return false;
     }
     return true;

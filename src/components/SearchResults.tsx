@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { getMyAds } from "@/lib/userAds";
 import { ListingGrid } from "@/components/ListingCard";
+import { normalizeSearchText } from "@/data/listings";
 import type { Listing, SortOrder } from "@/data/listings";
 import type { Dictionary } from "@/lib/dictionary";
 
@@ -34,7 +35,7 @@ export default function SearchResults({
   const [userListings, setUserListings] = useState<Listing[]>([]);
 
   useEffect(() => {
-    const q = query?.toLowerCase().trim();
+    const q = normalizeSearchText(query ?? "");
     const userAds = getMyAds()
       .filter((l) => {
         if (categorySlug && categorySlug !== "tous" && l.categorySlug !== categorySlug)
@@ -44,8 +45,9 @@ export default function SearchResults({
         if (maxPrice != null && !Number.isNaN(maxPrice) && l.price > maxPrice) return false;
         if (negotiableOnly && !l.negotiable) return false;
         if (q) {
-          const haystack =
-            `${l.titleFr} ${l.titleAr} ${l.descriptionFr} ${l.descriptionAr} ${l.communeFr} ${l.communeAr} ${l.sellerFr} ${l.sellerAr}`.toLowerCase();
+          const haystack = normalizeSearchText(
+            `${l.titleFr} ${l.titleAr} ${l.descriptionFr} ${l.descriptionAr} ${l.communeFr} ${l.communeAr} ${l.sellerFr} ${l.sellerAr}`
+          );
           if (!haystack.includes(q)) return false;
         }
         return true;
