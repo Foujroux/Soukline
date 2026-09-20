@@ -8,6 +8,7 @@ import {
   type AccountType,
   type SessionUser,
 } from "@/lib/auth-types";
+import { ensureSchema, isDbConfigured, isUniqueViolation, query } from "@/lib/db";
 
 const USERS_FILE = path.join(tmpdir(), "soukline", "users.json");
 const SECRET_FILE = path.join(tmpdir(), "soukline", ".secret");
@@ -16,6 +17,8 @@ const MAX_FAILED_ATTEMPTS = 5;
 const LOCK_DURATION_MS = 15 * 60 * 1000;
 
 export const SESSION_COOKIE = "soukdz_session";
+
+const useDb = isDbConfigured();
 
 export function sessionCookieOptions(secure: boolean) {
   return {
@@ -53,7 +56,21 @@ interface SessionPayload {
   exp: number;
 }
 
+interface UserRow {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  account_type: string;
+  lang: string;
+  created_at: Date;
+  hash: string;
+  failed_attempts: number;
+  locked_until: Date | null;
+}
+
 let usersCache: StoredUser[] | null = null;
+let seedPromise: Promise<void> | null = null;
 
 function getSecret(): string {
   const fromEnv = process.env.SESSION_SECRET;
@@ -88,6 +105,25 @@ function toPublicUser(user: StoredUser): SessionUser {
     accountType: user.accountType,
     lang: user.lang,
     createdAt: user.createdAt,
+  };
+}
+
+function isValidAccountType(role: unknown): role is AccountType {
+  return typeof role === "string" && (VALID_ACCOUNT_TYPES as readonly string[]).includes(role);
+}
+
+function rowToStored(row: UserRow): StoredUser {
+  return {
+    id: row.id,
+    name: row.name,
+    email: row.email,
+    phone: row.phone,
+    accountType: isValidAccountType(row.account_type) ? row.account_type : "user",
+    lang: row.lang === "ar" ? "ar" : "fr",
+    createdAt: row.created_at.toISOString(),
+    hash: row.hash,
+    failedAttempts: row.failed_attempts,
+    lockedUntil: row.locked_until ? row.locked_until.toISOString() : undefined,
   };
 }
 
@@ -134,20 +170,21 @@ async function verifyPassword(password: string, stored: string): Promise<boolean
   }
 }
 
+const DEFAULT_ACCOUNTS: Array<{
+  email: string;
+  password: string;
+  name: string;
+  phone: string;
+  accountType: AccountType;
+}> = [
+  { email: "admin@example.dz", password: "admin123", name: "Admin Soukline", phone: "", accountType: "admin" },
+  { email: "merchant@example.dz", password: "merchant123", name: "Boutique El Baraka", phone: "0550123456", accountType: "merchant" },
+  { email: "user@example.dz", password: "user123", name: "Ahmed Benali", phone: "0550987654", accountType: "user" },
+];
+
 async function seedAccounts(): Promise<StoredUser[]> {
-  const accounts: Array<{
-    email: string;
-    password: string;
-    name: string;
-    phone: string;
-    accountType: AccountType;
-  }> = [
-    { email: "admin@example.dz", password: "admin123", name: "Admin Soukline", phone: "", accountType: "admin" },
-    { email: "merchant@example.dz", password: "merchant123", name: "Boutique El Baraka", phone: "0550123456", accountType: "merchant" },
-    { email: "user@example.dz", password: "user123", name: "Ahmed Benali", phone: "0550987654", accountType: "user" },
-  ];
   const users: StoredUser[] = [];
-  for (const acc of accounts) {
+  for (const acc of DEFAULT_ACCOUNTS) {
     users.push({
       id: randomBytes(16).toString("hex"),
       name: acc.name,
@@ -162,9 +199,49 @@ async function seedAccounts(): Promise<StoredUser[]> {
   return users;
 }
 
-export async function findUserByEmail(email: string): Promise<SessionUser | null> {
+async function seedDbAccounts(): Promise<void> {
+  if (seedPromise) return seedPromise;
+  seedPromise = (async () => {
+    await ensureSchema();
+    for (const acc of DEFAULT_ACCOUNTS) {
+      const rows = await query<UserRow>("SELECT * FROM app_users WHERE email = $1", [acc.email]);
+      if (rows.length > 0) continue;
+      const id = randomBytes(16).toString("hex");
+      const hash = await hashPassword(acc.password);
+      await query(
+        `INSERT INTO app_users (id, name, email, phone, account_type, lang, created_at, hash, failed_attempts, locked_until)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0, NULL)
+         ON CONFLICT (email) DO NOTHING`,
+        [id, acc.name, acc.email, acc.phone, acc.accountType, "fr", new Date().toISOString(), hash]
+      );
+    }
+  })();
+  return seedPromise;
+}
+
+async function findStoredByEmail(email: string): Promise<StoredUser | null> {
+  const normalized = email.toLowerCase();
+  if (useDb) {
+    await seedDbAccounts();
+    const rows = await query<UserRow>("SELECT * FROM app_users WHERE email = $1", [normalized]);
+    return rows.length > 0 ? rowToStored(rows[0]) : null;
+  }
   const users = await ensureStore();
-  const user = users.find((u) => u.email === email.toLowerCase());
+  return users.find((u) => u.email === normalized) ?? null;
+}
+
+async function findStoredById(id: string): Promise<StoredUser | null> {
+  if (useDb) {
+    await seedDbAccounts();
+    const rows = await query<UserRow>("SELECT * FROM app_users WHERE id = $1", [id]);
+    return rows.length > 0 ? rowToStored(rows[0]) : null;
+  }
+  const users = await ensureStore();
+  return users.find((u) => u.id === id) ?? null;
+}
+
+export async function findUserByEmail(email: string): Promise<SessionUser | null> {
+  const user = await findStoredByEmail(email);
   return user ? toPublicUser(user) : null;
 }
 
@@ -176,36 +253,48 @@ export async function createUser(input: {
   accountType: AccountType;
   lang: "fr" | "ar";
 }): Promise<SessionUser> {
-  const users = await ensureStore();
   const email = input.email.toLowerCase();
-  if (users.some((u) => u.email === email)) {
-    throw new AuthError("EMAIL_EXISTS");
-  }
+  const hash = await hashPassword(input.password);
   const user: StoredUser = {
     id: randomBytes(16).toString("hex"),
     name: input.name,
     email,
     phone: input.phone,
     accountType: isValidAccountType(input.accountType) ? input.accountType : "user",
-    lang: input.lang,
+    lang: input.lang === "ar" ? "ar" : "fr",
     createdAt: new Date().toISOString(),
-    hash: await hashPassword(input.password),
+    hash,
   };
+
+  if (useDb) {
+    await seedDbAccounts();
+    try {
+      await query(
+        `INSERT INTO app_users (id, name, email, phone, account_type, lang, created_at, hash, failed_attempts, locked_until)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 0, NULL)`,
+        [user.id, user.name, email, user.phone, user.accountType, user.lang, user.createdAt, hash]
+      );
+    } catch (err) {
+      if (isUniqueViolation(err)) throw new AuthError("EMAIL_EXISTS");
+      throw err;
+    }
+    return toPublicUser(user);
+  }
+
+  const users = await ensureStore();
+  if (users.some((u) => u.email === email)) {
+    throw new AuthError("EMAIL_EXISTS");
+  }
   users.push(user);
   await writeStore();
   return toPublicUser(user);
-}
-
-function isValidAccountType(role: unknown): role is AccountType {
-  return typeof role === "string" && (VALID_ACCOUNT_TYPES as readonly string[]).includes(role);
 }
 
 export async function authenticateUser(
   email: string,
   password: string
 ): Promise<SessionUser | null> {
-  const users = await ensureStore();
-  const stored = users.find((u) => u.email === email.toLowerCase());
+  const stored = await findStoredByEmail(email);
   if (!stored) return null;
 
   if (stored.lockedUntil && Date.now() < new Date(stored.lockedUntil).getTime()) {
@@ -214,22 +303,34 @@ export async function authenticateUser(
 
   const ok = await verifyPassword(password, stored.hash);
   if (!ok) {
-    stored.failedAttempts = (stored.failedAttempts ?? 0) + 1;
-    if (stored.failedAttempts >= MAX_FAILED_ATTEMPTS) {
-      stored.lockedUntil = new Date(Date.now() + LOCK_DURATION_MS).toISOString();
-      stored.failedAttempts = 0;
+    const attempts = (stored.failedAttempts ?? 0) + 1;
+    const lockedUntil =
+      attempts >= MAX_FAILED_ATTEMPTS
+        ? new Date(Date.now() + LOCK_DURATION_MS).toISOString()
+        : null;
+    if (useDb) {
+      await query(
+        "UPDATE app_users SET failed_attempts = $1, locked_until = $2 WHERE email = $3",
+        [attempts, lockedUntil, stored.email]
+      );
+    } else {
+      stored.failedAttempts = attempts;
+      if (lockedUntil) stored.lockedUntil = lockedUntil;
+      await writeStore();
     }
-    await writeStore();
     throw new AuthError("INVALID_CREDENTIALS");
   }
 
-  if (stored.failedAttempts) {
+  if (useDb) {
+    await query(
+      "UPDATE app_users SET failed_attempts = 0, locked_until = NULL WHERE email = $1",
+      [stored.email]
+    );
+  } else {
     delete stored.failedAttempts;
-  }
-  if (stored.lockedUntil) {
     delete stored.lockedUntil;
+    await writeStore();
   }
-  await writeStore();
   return toPublicUser(stored);
 }
 
@@ -272,8 +373,7 @@ export function verifySession(token: string | undefined | null): SessionPayload 
 export async function getUserFromSessionToken(token: string | undefined | null): Promise<SessionUser | null> {
   const session = verifySession(token);
   if (!session) return null;
-  const users = await ensureStore();
-  const user = users.find((u) => u.id === session.uid);
+  const user = await findStoredById(session.uid);
   return user ? toPublicUser(user) : null;
 }
 
