@@ -8,6 +8,7 @@ import { ListingGrid } from "@/components/ListingCard";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import UserAdDetail from "@/components/UserAdDetail";
 import AdDetailClient from "./AdDetailClient";
+import ImageCarousel from "@/components/ImageCarousel";
 
 type PageProps = {
   params: Promise<{ lang: string; slug: string }>;
@@ -68,13 +69,21 @@ export default async function AdDetailPage({ params }: PageProps) {
       <div className="mt-4 flex flex-col gap-6 xl:flex-row">
         {/* Main content */}
         <div className="min-w-0 flex-1 space-y-6">
-          {/* Image gallery placeholder */}
           <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-            <div className="relative aspect-[16/10] flex items-center justify-center overflow-hidden bg-gradient-to-br from-emerald-600 via-teal-500 to-emerald-700">
-              <span className="text-8xl opacity-90">{category?.emoji ?? "📦"}</span>
-              <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+            <div className="relative">
+              <ImageCarousel
+                images={listing.images}
+                alt={title}
+                lang={resolved}
+                placeholder={
+                  <>
+                    <span className="text-8xl opacity-90">{category?.emoji ?? "📦"}</span>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                  </>
+                }
+              />
               {listing.featured && (
-                <span className="absolute top-3 ltr:left-3 rtl:right-3 rounded-full bg-amber-400/95 px-3 py-1 text-xs font-bold uppercase tracking-wide text-amber-950 shadow">
+                <span className="absolute top-3 ltr:left-3 rtl:right-3 z-10 rounded-full bg-amber-400/95 px-3 py-1 text-xs font-bold uppercase tracking-wide text-amber-950 shadow">
                   ★ {resolved === "fr" ? "Annonce à la une" : "إعلان مميز"}
                 </span>
               )}

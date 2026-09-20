@@ -8,6 +8,7 @@ import { getWilaya } from "@/data/wilayas";
 import type { Dictionary } from "@/lib/dictionary";
 import NotFoundContent from "@/components/NotFoundContent";
 import AdDetailClient from "@/app/[lang]/annonce/[slug]/AdDetailClient";
+import ImageCarousel from "@/components/ImageCarousel";
 
 interface Props {
   lang: "fr" | "ar";
@@ -44,16 +45,14 @@ export default function UserAdDetail({ lang, dictionary, slug }: Props) {
       <div className="mt-4 flex flex-col gap-6 xl:flex-row">
         <div className="min-w-0 flex-1 space-y-6">
           <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-            <div className="relative aspect-[16/10] flex items-center justify-center overflow-hidden">
-              {ad.images.length > 0 ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={ad.images[0]} alt={title} fetchPriority="high" decoding="async" className="h-full w-full object-cover" />
-              ) : (
-                <div className="grid h-full w-full place-items-center bg-gradient-to-br from-emerald-600 via-teal-500 to-emerald-700">
-                  <span className="text-8xl opacity-90">{category?.emoji ?? "📦"}</span>
-                </div>
-              )}
-            </div>
+            <ImageCarousel
+              images={ad.images}
+              alt={title}
+              lang={lang}
+              placeholder={
+                <span className="text-8xl opacity-90">{category?.emoji ?? "📦"}</span>
+              }
+            />
           </div>
 
           <div className="rounded-2xl border border-slate-200 bg-white p-6">
