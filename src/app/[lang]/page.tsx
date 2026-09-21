@@ -5,6 +5,8 @@ import { getFeaturedListings, LISTINGS } from "@/data/listings";
 import { ListingGrid } from "@/components/ListingCard";
 import { WILAYAS } from "@/data/wilayas";
 import HomeLatest from "@/components/HomeLatest";
+import HomeFilters from "@/components/HomeFilters";
+import { HomeFiltersProvider } from "@/components/HomeFiltersProvider";
 
 export const metadata = {
   title: "Souk.dz",
@@ -25,36 +27,38 @@ export default async function HomePage({
   const featured = getFeaturedListings();
 
   return (
-    <div>
-      {/* Hero */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-emerald-700 via-emerald-600 to-teal-600 text-white">
-        <div className="pointer-events-none absolute inset-0 opacity-10 rtl:scale-x-[-1]">
-          <svg className="h-full w-full" viewBox="0 0 800 400" preserveAspectRatio="none">
-            <path
-              d="M0,100 C150,200 250,0 400,100 C550,200 650,50 800,150 L800,400 L0,400 Z"
-              fill="white"
-            />
-          </svg>
-        </div>
-        <div className="relative mx-auto max-w-7xl px-4 py-16 lg:py-24">
-          <div className="max-w-3xl">
-            <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-1.5 text-sm font-semibold backdrop-blur-sm">
-              <span aria-hidden>🇩🇿</span> {dictionary.hero.badge}
-            </span>
-            <h1 className="mt-5 text-4xl font-extrabold leading-tight tracking-tight lg:text-5xl">
-              {dictionary.hero.title}
-            </h1>
-            <p className="mt-4 max-w-2xl text-lg leading-relaxed text-emerald-50/90">
-              {dictionary.hero.subtitle}
-            </p>
-            <HeroSearch lang={resolved} dictionary={dictionary} />
-            <p className="mt-3 flex items-center gap-2 text-sm font-medium text-emerald-50/80">
-              <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-amber-400" />
-              {dictionary.hero.adsCount}
-            </p>
+    <HomeFiltersProvider>
+      <div>
+        {/* Hero */}
+        <section className="relative overflow-hidden bg-gradient-to-br from-emerald-700 via-emerald-600 to-teal-600 text-white">
+          <div className="pointer-events-none absolute inset-0 opacity-10 rtl:scale-x-[-1]">
+            <svg className="h-full w-full" viewBox="0 0 800 400" preserveAspectRatio="none">
+              <path
+                d="M0,100 C150,200 250,0 400,100 C550,200 650,50 800,150 L800,400 L0,400 Z"
+                fill="white"
+              />
+            </svg>
           </div>
-        </div>
-      </section>
+          <div className="relative mx-auto max-w-7xl px-4 py-16 lg:py-24">
+            <div className="max-w-3xl">
+              <span className="inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-1.5 text-sm font-semibold backdrop-blur-sm">
+                <span aria-hidden>🇩🇿</span> {dictionary.hero.badge}
+              </span>
+              <h1 className="mt-5 text-4xl font-extrabold leading-tight tracking-tight lg:text-5xl">
+                {dictionary.hero.title}
+              </h1>
+              <p className="mt-4 max-w-2xl text-lg leading-relaxed text-emerald-50/90">
+                {dictionary.hero.subtitle}
+              </p>
+              <HeroSearch lang={resolved} dictionary={dictionary} />
+              <HomeFilters lang={resolved} dictionary={dictionary} />
+              <p className="mt-3 flex items-center gap-2 text-sm font-medium text-emerald-50/80">
+                <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-amber-400" />
+                {dictionary.hero.adsCount}
+              </p>
+            </div>
+          </div>
+        </section>
 
       {/* Categories */}
       <section className="mx-auto max-w-7xl px-4 py-10">
@@ -131,7 +135,8 @@ export default async function HomePage({
           </div>
         </div>
       </section>
-    </div>
+      </div>
+    </HomeFiltersProvider>
   );
 }
 

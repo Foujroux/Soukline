@@ -3,7 +3,6 @@ import {
   AuthError,
   createSession,
   createUser,
-  isSecureRequest,
   SESSION_COOKIE,
   sessionCookieOptions,
 } from "@/lib/server-auth";
@@ -54,7 +53,7 @@ export async function POST(request: NextRequest) {
     response.cookies.set(
       SESSION_COOKIE,
       token,
-      sessionCookieOptions(isSecureRequest(request.headers.get("x-forwarded-proto"), request.url))
+      sessionCookieOptions()
     );
     return response;
   } catch (error) {

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
+import { createClient as createSupabaseClient } from "@/utils/supabase/middleware";
 
 const WINDOW_MS = 60_000;
 const MAX_REQUESTS = 20;
@@ -18,10 +19,14 @@ function getClientIp(request: NextRequest): string {
   return "unknown";
 }
 
-export function proxy(request: NextRequest) {
+export const proxy = async (request: NextRequest) => {
+  // Refresh the Supabase session by validating the auth token and issuing
+  // updated cookie headers on the returned response.
+  const supabaseResponse = await createSupabaseClient(request);
+
   const { pathname } = request.nextUrl;
   if (!pathname.startsWith("/api/")) {
-    return NextResponse.next();
+    return supabaseResponse;
   }
 
   const ip = getClientIp(request);
@@ -30,7 +35,7 @@ export function proxy(request: NextRequest) {
   const hits = (limits.get(ip) ?? []).filter((t) => now - t < WINDOW_MS);
 
   if (hits.length >= MAX_REQUESTS) {
-    return NextResponse.json(
+    const response = NextResponse.json(
       { error: "Too many requests. Please try again later." },
       {
         status: 429,
@@ -41,17 +46,25 @@ export function proxy(request: NextRequest) {
         },
       }
     );
+    for (const cookie of supabaseResponse.cookies.getAll()) {
+      response.cookies.set(cookie);
+    }
+    return response;
   }
 
   hits.push(now);
   limits.set(ip, hits);
 
-  const response = NextResponse.next();
-  response.headers.set("X-RateLimit-Limit", String(MAX_REQUESTS));
-  response.headers.set("X-RateLimit-Remaining", String(MAX_REQUESTS - hits.length));
-  return response;
-}
+  supabaseResponse.headers.set("X-RateLimit-Limit", String(MAX_REQUESTS));
+  supabaseResponse.headers.set(
+    "X-RateLimit-Remaining",
+    String(MAX_REQUESTS - hits.length)
+  );
+  return supabaseResponse;
+};
 
 export const config = {
-  matcher: ["/api/:path*"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+  ],
 };

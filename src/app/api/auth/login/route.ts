@@ -3,7 +3,6 @@ import {
   authenticateUser,
   AuthError,
   createSession,
-  isSecureRequest,
   SESSION_COOKIE,
   sessionCookieOptions,
 } from "@/lib/server-auth";
@@ -33,6 +32,7 @@ export async function POST(request: NextRequest) {
   try {
     const user = await authenticateUser(email, password);
     if (!user) {
+      console.warn(`[auth] login failed: no user found for "${email}"`);
       return NextResponse.json({ error: "INVALID_CREDENTIALS" }, { status: 401 });
     }
     const token = createSession(user);
@@ -40,14 +40,16 @@ export async function POST(request: NextRequest) {
     response.cookies.set(
       SESSION_COOKIE,
       token,
-      sessionCookieOptions(isSecureRequest(request.headers.get("x-forwarded-proto"), request.url))
+      sessionCookieOptions()
     );
     return response;
   } catch (error) {
     if (error instanceof AuthError) {
       if (error.code === "ACCOUNT_LOCKED") {
+        console.warn(`[auth] login failed for "${email}": account locked (${error.message})`);
         return NextResponse.json({ error: "ACCOUNT_LOCKED" }, { status: 423 });
       }
+      console.warn(`[auth] login failed for "${email}": ${error.code} (${error.message})`);
       return NextResponse.json({ error: "INVALID_CREDENTIALS" }, { status: 401 });
     }
     console.error("login error:", error);

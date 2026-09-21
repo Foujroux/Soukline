@@ -20,21 +20,14 @@ export const SESSION_COOKIE = "soukdz_session";
 
 const useDb = isDbConfigured();
 
-export function sessionCookieOptions(secure: boolean) {
+export function sessionCookieOptions() {
   return {
     httpOnly: true,
     sameSite: "lax" as const,
-    secure,
+    secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: SESSION_TTL_SECONDS,
   };
-}
-
-export function isSecureRequest(forwardedProto: string | null, url: string): boolean {
-  if (forwardedProto) {
-    return forwardedProto.split(",")[0].trim().toLowerCase() === "https";
-  }
-  return url.startsWith("https");
 }
 
 export class AuthError extends Error {
