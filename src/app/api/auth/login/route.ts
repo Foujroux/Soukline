@@ -4,6 +4,10 @@ import {
   createRouteClient,
   isSupabaseConfigured,
 } from "@/utils/supabase/server";
+import {
+  logSupabaseConfig,
+  validateSupabaseConfig,
+} from "@/utils/supabase/config";
 
 export const runtime = "nodejs";
 
@@ -27,11 +31,23 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "INVALID_CREDENTIALS" }, { status: 401 });
   }
 
-  if (!isSupabaseConfigured()) {
+  // Explicit pre-flight check: validate the Supabase URL/keys BEFORE any auth
+  // call so a misconfigured deployment surfaces in Vercel logs as the real
+  // cause (e.g. AuthRetryableFetchError "fetch failed") instead of a masked
+  // generic error.
+  const validation = validateSupabaseConfig();
+  if (!validation.ok || !isSupabaseConfigured()) {
+    logSupabaseConfig("login");
     console.error(
-      "[auth] login blocked: NEXT_PUBLIC_SUPABASE_URL / ANON (or PUBLISHABLE) key missing"
+      "[auth] login blocked: invalid Supabase configuration",
+      validation.fatalIssues
     );
     return NextResponse.json({ error: "AUTH_NOT_CONFIGURED" }, { status: 500 });
+  }
+  if (validation.issues.length > 0) {
+    // Cosmetic issues (quotes / whitespace) are auto-sanitized by config, but
+    // still surface them so the deployment env vars can be cleaned up.
+    logSupabaseConfig("login");
   }
 
   const cookieJar = NextResponse.json({});
