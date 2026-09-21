@@ -44,11 +44,15 @@ export const createClient = (
         }
       },
     },
+    global: { fetch: fetch.bind(globalThis) },
   });
 };
 
 // Route handlers own their outgoing response, so Supabase session cookies are
 // written directly onto it (this is required for login/register/logout).
+// persistSession stays enabled here: setAll() writes the auth cookies onto the
+// outgoing response, and disabling it would stop login/register cookies from
+// being set.
 export function createRouteClient(
   request: Request,
   response: NextResponse
@@ -64,6 +68,7 @@ export function createRouteClient(
         );
       },
     },
+    global: { fetch: fetch.bind(globalThis) },
   });
 }
 
@@ -79,6 +84,8 @@ export function createReadClient(request: Request) {
         // Intentionally a no-op: middleware already refreshes expired tokens.
       },
     },
+    auth: { persistSession: false },
+    global: { fetch: fetch.bind(globalThis) },
   });
 }
 
@@ -93,5 +100,7 @@ export function createAnonClient() {
         // No cookies are persisted for anonymous public reads.
       },
     },
+    auth: { persistSession: false },
+    global: { fetch: fetch.bind(globalThis) },
   });
 }

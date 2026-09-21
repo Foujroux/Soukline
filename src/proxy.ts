@@ -35,6 +35,9 @@ export const proxy = async (request: NextRequest) => {
   const hits = (limits.get(ip) ?? []).filter((t) => now - t < WINDOW_MS);
 
   if (hits.length >= MAX_REQUESTS) {
+    console.warn(
+      `[proxy] rate limited ip=${ip} count=${hits.length} path=${pathname} - route handler NOT invoked`
+    );
     const response = NextResponse.json(
       { error: "Too many requests. Please try again later." },
       {

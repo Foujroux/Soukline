@@ -69,6 +69,7 @@ export async function login(
   password: string
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
+    console.debug("[client] POST /api/auth/login", { email });
     const res = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -87,7 +88,8 @@ export async function login(
       return { ok: false, error: "RATE_LIMITED" };
     }
     return { ok: false, error: data?.error ?? "INVALID_CREDENTIALS" };
-  } catch {
+  } catch (err) {
+    console.error("[client] login fetch failed:", err);
     return { ok: false, error: "NETWORK" };
   }
 }
@@ -101,6 +103,7 @@ export async function register(input: {
   lang: "fr" | "ar";
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   try {
+    console.debug("[client] POST /api/auth/register", { email: input.email });
     const res = await fetch("/api/auth/register", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -119,7 +122,8 @@ export async function register(input: {
       return { ok: false, error: "RATE_LIMITED" };
     }
     return { ok: false, error: data?.error ?? "BAD_REQUEST" };
-  } catch {
+  } catch (err) {
+    console.error("[client] register fetch failed:", err);
     return { ok: false, error: "NETWORK" };
   }
 }

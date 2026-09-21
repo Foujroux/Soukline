@@ -41,11 +41,31 @@ export const createClient = async (request: NextRequest) => {
           )
         },
       },
+      global: { fetch: fetch.bind(globalThis) },
     },
   );
 
-  // Refresh the user's session so cookies stay valid.
-  await supabase.auth.getUser();
+  // Refresh the user's session so cookies stay valid. NEVER let a network
+  // failure here abort the request: if Supabase is unreachable, getUser()
+  // throws and Next.js would respond 500 before the /api/auth/* route handler
+  // ever runs - which is exactly how registration "disappears" from Vercel's
+  // request logs. Catch the error, log it, and forward the request so the
+  // route's own diagnostics capture the root cause.
+  try {
+    await supabase.auth.getUser();
+  } catch (err) {
+    const cause = (err as { cause?: unknown } | undefined)?.cause;
+    console.error(
+      "[supabase] proxy getUser() failed; forwarding request to the route handler so it can log the real cause",
+      JSON.stringify({
+        message: err instanceof Error ? err.message : String(err),
+        cause:
+          cause instanceof Error
+            ? { name: cause.name, message: cause.message }
+            : String(cause),
+      })
+    );
+  }
 
   return supabaseResponse
 };

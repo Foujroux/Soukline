@@ -5,7 +5,13 @@ import {
   isSupabaseConfigured,
 } from "@/utils/supabase/server";
 import {
+  logEnvPresence,
+  probeAuthHealth,
+  serializeError,
+} from "@/lib/supabase-diag";
+import {
   logSupabaseConfig,
+  supabaseUrl,
   validateSupabaseConfig,
 } from "@/utils/supabase/config";
 
@@ -50,6 +56,11 @@ export async function POST(request: NextRequest) {
     logSupabaseConfig("login");
   }
 
+  // ── Diagnostic instrumentation (temporary, for the 500 "fetch failed" hunt).
+  // Direct raw network + env checks BEFORE any SDK auth call.
+  logEnvPresence("login");
+  await probeAuthHealth("login", supabaseUrl);
+
   const cookieJar = NextResponse.json({});
   const supabase = createRouteClient(request, cookieJar);
 
@@ -60,21 +71,63 @@ export async function POST(request: NextRequest) {
     });
 
     if (error || !data.user) {
-      if (/email.*not.*confirmed/i.test(error?.message ?? "")) {
+      // Log the exact Supabase message, HTTP status, and raw network cause so
+      // Vercel logs reveal whether the failure is DNS, TLS, timeout, or an
+      // actual invalid-credentials 401.
+      const anyError = error as
+        | { name?: string; status?: number; code?: string; cause?: unknown; stack?: string }
+        | undefined;
+      const errorName = anyError?.name ?? "AuthError";
+      const isFetchFailure =
+        errorName === "AuthRetryableFetchError" ||
+        /fetch failed|failed to fetch|network|ENOTFOUND|UND_ERR|ECONNRESET|ETIMEDOUT/i.test(
+          error?.message ?? ""
+        );
+      console.error("[auth] login signIn failed", {
+        email,
+        errorName,
+        rawStatus: anyError?.status ?? null,
+        message: error?.message ?? "no user",
+        code: anyError?.code ?? null,
+        cause: serializeError(0, anyError?.cause),
+        stack: anyError?.stack ?? null,
+      });
+
+      if (error?.message && /email.*not.*confirmed/i.test(error.message)) {
         return NextResponse.json(
           { error: "EMAIL_NOT_CONFIRMED" },
           { status: 400 }
         );
       }
-      console.warn(`[auth] login failed for "${email}": ${error?.message ?? "no user"}`);
+
+      if (isFetchFailure) {
+        // Diagnostic: temporarily expose the raw network error so the login
+        // modal shows the real failure instead of a masked
+        // "Adresse e-mail ou mot de passe incorrect".
+        return NextResponse.json(
+          { error: error?.message ?? "fetch failed", cause: serializeError(0, anyError?.cause) },
+          { status: 502 }
+        );
+      }
+
       return NextResponse.json({ error: "INVALID_CREDENTIALS" }, { status: 401 });
     }
 
     const response = NextResponse.json({ user: userToSessionUser(data.user) });
     return copySessionCookies(cookieJar, response);
   } catch (error) {
-    console.error("login error:", error);
-    return NextResponse.json({ error: "INTERNAL" }, { status: 500 });
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("[auth] login unexpected error:", {
+      email,
+      message,
+      error: serializeError(0, error),
+    });
+    // Diagnostic: expose the raw error so the modal displays the actual system
+    // error instead of "Adresse e-mail ou mot de passe incorrect".
+    return NextResponse.json(
+      { error: message, cause: serializeError(0, error) },
+      { status: 500 }
+    );
   }
 }
 

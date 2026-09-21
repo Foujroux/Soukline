@@ -40,8 +40,14 @@ function errorMessage(code: string, lang: "fr" | "ar"): string {
         return "التسجيل غير متاح حاليًا.";
       case "NETWORK":
         return "تعذّر الاتصال بالخادم.";
-      default:
-        return "حدث خطأ. حاول مرة أخرى.";
+      default: {
+        // Diagnostic: let raw system messages (e.g. "fetch failed") through so
+        // the real error is visible in the modal. Real normalized codes (all
+        // UPPERCASE tokens) keep the generic Arabic fallback.
+        return /^[A-Z][A-Z0-9_]{2,}$/.test(code)
+          ? "حدث خطأ. حاول مرة أخرى."
+          : code;
+      }
     }
   }
   switch (code) {
@@ -69,8 +75,14 @@ function errorMessage(code: string, lang: "fr" | "ar"): string {
       return "L'inscription est momentanément indisponible.";
     case "NETWORK":
       return "Impossible de contacter le serveur.";
-    default:
-      return "Une erreur est survenue. Réessayez.";
+    default: {
+      // Diagnostic: let raw system messages (e.g. "fetch failed") through so
+      // the real error is visible in the modal. Real normalized codes (all
+      // UPPERCASE tokens) keep the generic French fallback.
+      return /^[A-Z][A-Z0-9_]{2,}$/.test(code)
+        ? "Une erreur est survenue. Réessayez."
+        : code;
+    }
   }
 }
 
@@ -86,53 +98,61 @@ export default function AuthForm({ lang, dictionary, mode }: Props) {
     setError("");
     setLoading(true);
 
-    const form = new FormData(e.currentTarget);
-    const email = String(form.get("email") || "").trim();
-    const password = String(form.get("password") || "");
-    const name = String(form.get("name") || "").trim();
-    const phone = String(form.get("phone") || "").trim();
+    try {
+      const form = new FormData(e.currentTarget);
+      const email = String(form.get("email") || "").trim();
+      const password = String(form.get("password") || "");
+      const name = String(form.get("name") || "").trim();
+      const phone = String(form.get("phone") || "").trim();
 
-    if (!EMAIL_RE.test(email)) {
-      setError(errorMessage("INVALID_EMAIL", lang));
+      if (!EMAIL_RE.test(email)) {
+        setError(errorMessage("INVALID_EMAIL", lang));
+        return;
+      }
+
+      if (!isLogin) {
+        if (name.length < 2) {
+          setError(errorMessage("INVALID_NAME", lang));
+          return;
+        }
+        if (password.length < 6) {
+          setError(errorMessage("WEAK_PASSWORD", lang));
+          return;
+        }
+        const confirm = String(form.get("confirmPassword") || "");
+        if (confirm !== password) {
+          setError(
+            lang === "fr"
+              ? "Les mots de passe ne correspondent pas."
+              : "كلمتا المرور غير متطابقتين."
+          );
+          return;
+        }
+      }
+
+      const result = isLogin
+        ? await login(email, password)
+        : await register({ name, email, phone, password, accountType, lang });
+
+      if (!result.ok) {
+        setError(errorMessage(result.error, lang));
+        return;
+      }
+
+      router.push(`/${lang}/compte`);
+    } catch (err) {
+      // Surface ANY client-side JS error instead of failing silently.
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("[client] auth submit handler threw:", err);
+      setError(
+        message ||
+          (lang === "fr"
+            ? "Une erreur est survenue. Réessayez."
+            : "حدث خطأ. حاول مرة أخرى.")
+      );
+    } finally {
       setLoading(false);
-      return;
     }
-
-    if (!isLogin) {
-      if (name.length < 2) {
-        setError(errorMessage("INVALID_NAME", lang));
-        setLoading(false);
-        return;
-      }
-      if (password.length < 6) {
-        setError(errorMessage("WEAK_PASSWORD", lang));
-        setLoading(false);
-        return;
-      }
-      const confirm = String(form.get("confirmPassword") || "");
-      if (confirm !== password) {
-        setError(
-          lang === "fr"
-            ? "Les mots de passe ne correspondent pas."
-            : "كلمتا المرور غير متطابقتين."
-        );
-        setLoading(false);
-        return;
-      }
-    }
-
-    const result = isLogin
-      ? await login(email, password)
-      : await register({ name, email, phone, password, accountType, lang });
-
-    if (!result.ok) {
-      setError(errorMessage(result.error, lang));
-      setLoading(false);
-      return;
-    }
-
-    setLoading(false);
-    router.push(`/${lang}/compte`);
   }
 
   return (

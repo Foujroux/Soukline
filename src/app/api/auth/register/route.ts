@@ -7,7 +7,13 @@ import {
   isSupabaseConfigured,
 } from "@/utils/supabase/server";
 import {
+  logEnvPresence,
+  probeAuthHealth,
+  serializeError,
+} from "@/lib/supabase-diag";
+import {
   logSupabaseConfig,
+  supabaseUrl,
   validateSupabaseConfig,
 } from "@/utils/supabase/config";
 
@@ -127,6 +133,11 @@ export async function POST(request: NextRequest) {
     logSupabaseConfig("register");
   }
 
+  // ── Diagnostic instrumentation (temporary, for the 500 "fetch failed" hunt).
+  // Direct raw network + env checks BEFORE any SDK auth call.
+  logEnvPresence("register");
+  await probeAuthHealth("register", supabaseUrl);
+
   const name = sanitizeName(String(body.name ?? "").trim());
   const email = String(body.email ?? "").trim().toLowerCase();
   const phone = sanitizePhone(String(body.phone ?? "").trim());
@@ -162,14 +173,40 @@ export async function POST(request: NextRequest) {
 
     if (error) {
       // Log the exact Supabase message + HTTP status so Vercel logs surface the
-      // real cause (rate limit, rejected email, disabled signups, ...).
+      // real cause (rate limit, rejected email, disabled signups, DNS, TLS, ...).
       const classified = classifySignUpError(error);
+      const anyError = error as {
+        name?: string;
+        status?: number;
+        code?: string;
+        cause?: unknown;
+        stack?: string;
+      };
+      const errorName = anyError.name ?? "AuthError";
+      const isFetchFailure =
+        errorName === "AuthRetryableFetchError" ||
+        /fetch failed|failed to fetch|network|ENOTFOUND|UND_ERR|ECONNRESET|ETIMEDOUT/i.test(
+          error.message ?? ""
+        );
       console.error("[auth] register signUp failed", {
         email,
-        errorName: error.name ?? "AuthError",
+        errorName,
+        rawStatus: anyError.status ?? null,
         status: classified.status,
         message: error.message,
+        code: anyError.code ?? null,
+        cause: serializeError(0, anyError.cause),
+        stack: anyError.stack ?? null,
       });
+      if (isFetchFailure) {
+        // Diagnostic: temporarily return the raw network error to the frontend
+        // so the modal shows the actual system failure instead of a generic
+        // "Une erreur est survenue".
+        return NextResponse.json(
+          { error: error.message, cause: serializeError(0, anyError.cause) },
+          { status: 502 }
+        );
+      }
       return NextResponse.json(
         { error: classified.code },
         { status: classified.status }
@@ -248,7 +285,13 @@ export async function POST(request: NextRequest) {
     console.error("[auth] register unexpected error:", {
       email,
       message,
+      error: serializeError(0, error),
     });
-    return NextResponse.json({ error: "INTERNAL" }, { status: 500 });
+    // Diagnostic: expose the raw error to the frontend so the modal displays
+    // the actual system error instead of "Une erreur est survenue".
+    return NextResponse.json(
+      { error: message, cause: serializeError(0, error) },
+      { status: 500 }
+    );
   }
 }
