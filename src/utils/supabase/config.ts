@@ -12,7 +12,19 @@ function cleanEnv(value: string | undefined): string {
     .replace(/\/+$/, "");
 }
 
-export const supabaseUrl = cleanEnv(process.env.NEXT_PUBLIC_SUPABASE_URL);
+// If the URL was saved without a scheme (e.g. "xpxqrvxmvhjetnoehsdm.supabase.co"),
+// prepend https:// automatically. Without a protocol, fetch() resolves it as a
+// relative URL against the app origin, which surfaces as a non-listening
+// "fetch failed" instead of reaching Supabase.
+function normalizeUrl(raw: string | undefined): string {
+  let value = cleanEnv(raw);
+  if (value && !/^https?:\/\//i.test(value)) {
+    value = `https://${value}`;
+  }
+  return value;
+}
+
+export const supabaseUrl = normalizeUrl(process.env.NEXT_PUBLIC_SUPABASE_URL);
 export const supabaseKey =
   cleanEnv(process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) ||
   cleanEnv(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) ||
@@ -59,6 +71,11 @@ export function validateSupabaseConfig(): SupabaseConfigValidation {
     }
     if (/^["']|["']$/.test(rawUrl)) {
       issues.push("NEXT_PUBLIC_SUPABASE_URL is wrapped in quotes");
+    }
+    if (!/^https?:\/\//i.test(rawUrl)) {
+      issues.push(
+        'NEXT_PUBLIC_SUPABASE_URL has no scheme; "https://" was prepended automatically'
+      );
     }
     if (!supabaseUrl) {
       issues.push("NEXT_PUBLIC_SUPABASE_URL is empty after sanitization");

@@ -162,6 +162,15 @@ export async function POST(request: NextRequest) {
   const cookieJar = NextResponse.json({});
   const supabase = createRouteClient(request, cookieJar);
 
+  // Log the exact URL the Supabase SDK will call against, so a wrong/missing
+  // scheme or a mistyped hostname is visible in Vercel logs right at the line
+  // where "fetch failed" is thrown.
+  console.log("Supabase URL Target:", {
+    raw: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "undefined",
+    effective: supabaseUrl,
+    hasHttpsPrefix: supabaseUrl.startsWith("https://"),
+  });
+
   try {
     const { data, error } = await supabase.auth.signUp({
       email,

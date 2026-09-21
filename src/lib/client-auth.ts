@@ -76,7 +76,11 @@ export async function login(
       credentials: "same-origin",
       body: JSON.stringify({ email, password }),
     });
-    const data = (await res.json().catch(() => null)) as { user?: SessionUser; error?: string } | null;
+    const data = (await res.json().catch(() => null)) as {
+      user?: SessionUser;
+      error?: string;
+      cause?: unknown;
+    } | null;
     if (res.ok && data?.user) {
       cached = data.user;
       notify();
@@ -86,6 +90,11 @@ export async function login(
     // machine-readable code — normalize it so the UI can translate it.
     if (res.status === 429) {
       return { ok: false, error: "RATE_LIMITED" };
+    }
+    if (!res.ok && data?.error) {
+      // Diagnostic: surface the exact network code (ENOTFOUND, ECONNREFUSED,
+      // UND_ERR_CONNECT_TIMEOUT, CERT_HAS_EXPIRED, ...) to the browser console.
+      console.error("[client] login failed:", res.status, data.error, data.cause);
     }
     return { ok: false, error: data?.error ?? "INVALID_CREDENTIALS" };
   } catch (err) {
@@ -110,7 +119,11 @@ export async function register(input: {
       credentials: "same-origin",
       body: JSON.stringify(input),
     });
-    const data = (await res.json().catch(() => null)) as { user?: SessionUser; error?: string } | null;
+    const data = (await res.json().catch(() => null)) as {
+      user?: SessionUser;
+      error?: string;
+      cause?: unknown;
+    } | null;
     if (res.ok && data?.user) {
       cached = data.user;
       notify();
@@ -120,6 +133,11 @@ export async function register(input: {
     // machine-readable code — normalize it so the UI can translate it.
     if (res.status === 429) {
       return { ok: false, error: "RATE_LIMITED" };
+    }
+    if (!res.ok && data?.error) {
+      // Diagnostic: surface the exact network code (ENOTFOUND, ECONNREFUSED,
+      // UND_ERR_CONNECT_TIMEOUT, CERT_HAS_EXPIRED, ...) to the browser console.
+      console.error("[client] register failed:", res.status, data.error, data.cause);
     }
     return { ok: false, error: data?.error ?? "BAD_REQUEST" };
   } catch (err) {
