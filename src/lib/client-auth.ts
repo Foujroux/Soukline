@@ -81,6 +81,11 @@ export async function login(
       notify();
       return { ok: true };
     }
+    // The edge rate-limiter returns 429 with a human-readable message, not a
+    // machine-readable code — normalize it so the UI can translate it.
+    if (res.status === 429) {
+      return { ok: false, error: "RATE_LIMITED" };
+    }
     return { ok: false, error: data?.error ?? "INVALID_CREDENTIALS" };
   } catch {
     return { ok: false, error: "NETWORK" };
@@ -107,6 +112,11 @@ export async function register(input: {
       cached = data.user;
       notify();
       return { ok: true };
+    }
+    // The edge rate-limiter returns 429 with a human-readable message, not a
+    // machine-readable code — normalize it so the UI can translate it.
+    if (res.status === 429) {
+      return { ok: false, error: "RATE_LIMITED" };
     }
     return { ok: false, error: data?.error ?? "BAD_REQUEST" };
   } catch {

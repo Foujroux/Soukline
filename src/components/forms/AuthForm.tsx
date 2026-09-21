@@ -28,6 +28,16 @@ function errorMessage(code: string, lang: "fr" | "ar"): string {
         return "البريد أو كلمة المرور غير صحيحة.";
       case "ACCOUNT_LOCKED":
         return "تم تأمين الحساب مؤقتًا بسبب محاولات فاشلة. حاول لاحقًا.";
+      case "EMAIL_NOT_CONFIRMED":
+        return "تحقق من بريدك الإلكتروني لتأكيد عنوان البريد قبل تسجيل الدخول.";
+      case "RATE_LIMITED":
+        return "طلبات كثيرة جدًا. انتظر بضع دقائق ثم حاول مرة أخرى.";
+      case "SIGNUPS_DISABLED":
+        return "التسجيل معطّل مؤقتًا. حاول لاحقًا.";
+      case "EMAIL_NOT_ALLOWED":
+        return "عنوان البريد الإلكتروني غير مسموح بالتسجيل به.";
+      case "AUTH_NOT_CONFIGURED":
+        return "التسجيل غير متاح حاليًا.";
       case "NETWORK":
         return "تعذّر الاتصال بالخادم.";
       default:
@@ -47,6 +57,16 @@ function errorMessage(code: string, lang: "fr" | "ar"): string {
       return "Adresse e-mail ou mot de passe incorrect.";
     case "ACCOUNT_LOCKED":
       return "Compte temporairement verrouillé après trop de tentatives. Réessayez plus tard.";
+    case "EMAIL_NOT_CONFIRMED":
+      return "Vérifiez votre boîte mail pour confirmer votre adresse e-mail avant de vous connecter.";
+    case "RATE_LIMITED":
+      return "Trop de demandes. Patientez quelques minutes avant de réessayer.";
+    case "SIGNUPS_DISABLED":
+      return "L'inscription est temporairement désactivée. Réessayez plus tard.";
+    case "EMAIL_NOT_ALLOWED":
+      return "Cette adresse e-mail n'est pas autorisée à s'inscrire.";
+    case "AUTH_NOT_CONFIGURED":
+      return "L'inscription est momentanément indisponible.";
     case "NETWORK":
       return "Impossible de contacter le serveur.";
     default:

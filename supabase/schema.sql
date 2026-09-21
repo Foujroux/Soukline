@@ -42,27 +42,34 @@ create policy "profiles_owner_update"
   with check (auth.uid() = id);
 
 -- Keep profiles in sync with auth.users (falls back to auth email/phone).
+-- Wrapped in an exception handler so a hiccup in the side-effect table can
+-- NEVER abort the auth.users insert (that would surface to the API as a
+-- "signup failed" error even though the account was created).
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
 security definer set search_path = public
 as $$
 begin
-  insert into public.profiles (id, email, full_name, phone, account_type, lang)
-  values (
-    new.id,
-    coalesce(new.email, ''),
-    coalesce(new.raw_user_meta_data ->> 'full_name', split_part(coalesce(new.email, ''), '@', 1), ''),
-    coalesce(new.raw_user_meta_data ->> 'phone', '', ''),
-    coalesce(new.raw_user_meta_data ->> 'account_type', 'user', 'user'),
-    coalesce(new.raw_user_meta_data ->> 'lang', 'fr', 'fr')
-  )
-  on conflict (id) do update set
-    email = excluded.email,
-    full_name = excluded.full_name,
-    phone = excluded.phone,
-    account_type = excluded.account_type,
-    lang = excluded.lang;
+  begin
+    insert into public.profiles (id, email, full_name, phone, account_type, lang)
+    values (
+      new.id,
+      coalesce(new.email, ''),
+      coalesce(new.raw_user_meta_data ->> 'full_name', split_part(coalesce(new.email, ''), '@', 1), ''),
+      coalesce(new.raw_user_meta_data ->> 'phone', '', ''),
+      coalesce(new.raw_user_meta_data ->> 'account_type', 'user', 'user'),
+      coalesce(new.raw_user_meta_data ->> 'lang', 'fr', 'fr')
+    )
+    on conflict (id) do update set
+      email = excluded.email,
+      full_name = excluded.full_name,
+      phone = excluded.phone,
+      account_type = excluded.account_type,
+      lang = excluded.lang;
+  exception when others then
+    raise notice 'handle_new_user profile sync skipped for %: %', new.id, sqlerrm;
+  end;
   return new;
 end;
 $$;

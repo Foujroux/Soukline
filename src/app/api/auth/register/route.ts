@@ -24,6 +24,80 @@ function copySessionCookies(from: NextResponse, to: NextResponse): NextResponse 
   return to;
 }
 
+type ErrorClassification = { code: string; status: number };
+
+// Maps raw Supabase Auth errors to a machine-readable code so the frontend can
+// show a specific message instead of a generic fallback. The raw error message
+// is always logged separately for Vercel log debugging.
+function classifySignUpError(error: {
+  message?: string;
+  status?: number;
+}): ErrorClassification {
+  const msg = (error?.message ?? "").toLowerCase();
+
+  if (
+    /already registered|already been registered|user_already_exists|already in use|email.*exist/i.test(
+      msg
+    )
+  ) {
+    return { code: "EMAIL_EXISTS", status: 409 };
+  }
+
+  if (
+    error?.status === 429 ||
+    /rate limit|too many requests|over_email_send_rate_limit|over_request_rate_limit|too frequent|temp_blocked/i.test(
+      msg
+    )
+  ) {
+    return { code: "RATE_LIMITED", status: 429 };
+  }
+
+  if (
+    /signup|sign_up|registration/i.test(msg) &&
+    /disabled/i.test(msg)
+  ) {
+    return { code: "SIGNUPS_DISABLED", status: 403 };
+  }
+
+  if (/invalid email|invalid_email|unable to validate.*email/i.test(msg)) {
+    return { code: "INVALID_EMAIL", status: 400 };
+  }
+
+  if (/not allowed|blocked|blacklist|forbidden|prohibited/i.test(msg)) {
+    return { code: "EMAIL_NOT_ALLOWED", status: 403 };
+  }
+
+  return { code: "INTERNAL", status: 500 };
+}
+
+function classifyAutoLoginError(error: {
+  message?: string;
+  status?: number;
+}): ErrorClassification {
+  const msg = (error?.message ?? "").toLowerCase();
+
+  if (/email.*not.*confirmed|unconfirmed/i.test(msg)) {
+    return { code: "EMAIL_NOT_CONFIRMED", status: 400 };
+  }
+
+  if (
+    error?.status === 429 ||
+    /rate limit|too many requests|over_request_rate_limit|too frequent/i.test(msg)
+  ) {
+    return { code: "RATE_LIMITED", status: 429 };
+  }
+
+  if (
+    /invalid.*credentials|invalid login|no user found|not found|user not found|unable to.*user/i.test(
+      msg
+    )
+  ) {
+    return { code: "INVALID_CREDENTIALS", status: 401 };
+  }
+
+  return { code: "INTERNAL", status: 500 };
+}
+
 export async function POST(request: NextRequest) {
   const body = await parseJson(request);
   if (!body) {
@@ -71,19 +145,33 @@ export async function POST(request: NextRequest) {
     });
 
     if (error) {
-      if (
-        /already registered|already been registered|user_already_exists|email.*exist/i.test(
-          error.message
-        )
-      ) {
-        return NextResponse.json({ error: "EMAIL_EXISTS" }, { status: 409 });
-      }
-      console.error("[auth] signUp error:", error.message);
-      return NextResponse.json({ error: "INTERNAL" }, { status: 500 });
+      // Log the exact Supabase message + HTTP status so Vercel logs surface the
+      // real cause (rate limit, rejected email, disabled signups, ...).
+      const classified = classifySignUpError(error);
+      console.error("[auth] register signUp failed", {
+        email,
+        errorName: error.name ?? "AuthError",
+        status: classified.status,
+        message: error.message,
+      });
+      return NextResponse.json(
+        { error: classified.code },
+        { status: classified.status }
+      );
     }
 
     if (!data.user) {
+      console.error("[auth] register signUp returned no user", { email });
       return NextResponse.json({ error: "INTERNAL" }, { status: 500 });
+    }
+
+    // Supabase does NOT throw when the email is already registered while email
+    // confirmation is enabled; it returns the existing account with an EMPTY
+    // identities array instead.
+    const identities = data.user.identities ?? null;
+    if (Array.isArray(identities) && identities.length === 0) {
+      console.warn("[auth] register duplicate email detected", { email });
+      return NextResponse.json({ error: "EMAIL_EXISTS" }, { status: 409 });
     }
 
     // If email confirmation is required, signUp returns no session. Sign the
@@ -95,16 +183,16 @@ export async function POST(request: NextRequest) {
         password,
       });
       if (signIn.error) {
-        if (/email.*not.*confirmed/i.test(signIn.error.message)) {
-          // The account lives in Supabase Auth and the on_auth_user_created
-          // trigger creates the profile row. Ask the user to confirm email.
-          return NextResponse.json(
-            { error: "EMAIL_NOT_CONFIRMED" },
-            { status: 400 }
-          );
-        }
-        console.warn("[auth] auto sign-in after signUp failed:", signIn.error.message);
-        return NextResponse.json({ error: "INTERNAL" }, { status: 500 });
+        const classified = classifyAutoLoginError(signIn.error);
+        console.warn("[auth] register auto sign-in failed", {
+          email,
+          status: classified.status,
+          message: signIn.error.message,
+        });
+        return NextResponse.json(
+          { error: classified.code },
+          { status: classified.status }
+        );
       }
     }
 
@@ -130,7 +218,9 @@ export async function POST(request: NextRequest) {
         );
       }
     } catch (syncError) {
-      console.warn("[auth] profile sync failed:", syncError);
+      const message =
+        syncError instanceof Error ? syncError.message : String(syncError);
+      console.warn("[auth] profile sync failed:", message);
     }
 
     return copySessionCookies(
@@ -138,7 +228,11 @@ export async function POST(request: NextRequest) {
       NextResponse.json({ user: userToSessionUser(data.user) })
     );
   } catch (error) {
-    console.error("register error:", error);
+    const message = error instanceof Error ? error.message : String(error);
+    console.error("[auth] register unexpected error:", {
+      email,
+      message,
+    });
     return NextResponse.json({ error: "INTERNAL" }, { status: 500 });
   }
 }
