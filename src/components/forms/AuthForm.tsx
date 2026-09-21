@@ -121,9 +121,6 @@ export default function AuthForm({ lang, dictionary, mode }: Props) {
         <h1 className="text-center text-2xl font-extrabold text-slate-900">
           {isLogin ? dictionary.auth.login : dictionary.auth.register}
         </h1>
-        <p className="mt-2 text-center text-xs text-slate-400">
-          {dictionary.auth.demoHint}
-        </p>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           {!isLogin && (

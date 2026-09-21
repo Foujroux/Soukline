@@ -1,11 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { userToSessionUser } from "@/lib/server-auth";
 import {
-  authenticateUser,
-  AuthError,
-  createSession,
-  SESSION_COOKIE,
-  sessionCookieOptions,
-} from "@/lib/server-auth";
+  createRouteClient,
+  isSupabaseConfigured,
+} from "@/utils/supabase/server";
 
 export const runtime = "nodejs";
 
@@ -29,30 +27,44 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "INVALID_CREDENTIALS" }, { status: 401 });
   }
 
-  try {
-    const user = await authenticateUser(email, password);
-    if (!user) {
-      console.warn(`[auth] login failed: no user found for "${email}"`);
-      return NextResponse.json({ error: "INVALID_CREDENTIALS" }, { status: 401 });
-    }
-    const token = createSession(user);
-    const response = NextResponse.json({ user });
-    response.cookies.set(
-      SESSION_COOKIE,
-      token,
-      sessionCookieOptions()
+  if (!isSupabaseConfigured()) {
+    console.error(
+      "[auth] login blocked: NEXT_PUBLIC_SUPABASE_URL / ANON (or PUBLISHABLE) key missing"
     );
-    return response;
-  } catch (error) {
-    if (error instanceof AuthError) {
-      if (error.code === "ACCOUNT_LOCKED") {
-        console.warn(`[auth] login failed for "${email}": account locked (${error.message})`);
-        return NextResponse.json({ error: "ACCOUNT_LOCKED" }, { status: 423 });
+    return NextResponse.json({ error: "AUTH_NOT_CONFIGURED" }, { status: 500 });
+  }
+
+  const cookieJar = NextResponse.json({});
+  const supabase = createRouteClient(request, cookieJar);
+
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error || !data.user) {
+      if (/email.*not.*confirmed/i.test(error?.message ?? "")) {
+        return NextResponse.json(
+          { error: "EMAIL_NOT_CONFIRMED" },
+          { status: 400 }
+        );
       }
-      console.warn(`[auth] login failed for "${email}": ${error.code} (${error.message})`);
+      console.warn(`[auth] login failed for "${email}": ${error?.message ?? "no user"}`);
       return NextResponse.json({ error: "INVALID_CREDENTIALS" }, { status: 401 });
     }
+
+    const response = NextResponse.json({ user: userToSessionUser(data.user) });
+    return copySessionCookies(cookieJar, response);
+  } catch (error) {
     console.error("login error:", error);
     return NextResponse.json({ error: "INTERNAL" }, { status: 500 });
   }
+}
+
+function copySessionCookies(from: NextResponse, to: NextResponse): NextResponse {
+  for (const cookie of from.cookies.getAll()) {
+    to.cookies.set(cookie);
+  }
+  return to;
 }

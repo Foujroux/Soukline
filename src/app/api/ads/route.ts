@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserFromRequest } from "@/lib/server-auth";
 import { addAd, listAds } from "@/lib/server-ads";
+import { createReadClient } from "@/utils/supabase/server";
 import { normalizeSearchText, sortListings, type SortOrder } from "@/data/listings";
 import type { UserAd } from "@/lib/userAds";
 
@@ -81,7 +82,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const ad = await addAd({
+    const ad = await addAd(createReadClient(request), {
       ownerId: user.id,
       accountType: user.accountType,
       data: {

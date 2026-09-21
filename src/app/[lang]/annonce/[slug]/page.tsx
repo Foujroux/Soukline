@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { getListingBySlug, formatPrice, getSimilarListings, LISTINGS } from "@/data/listings";
+import { formatPrice, getSimilarListings } from "@/data/listings";
+import { getAdBySlug, listPublicAds, toPublicAd } from "@/lib/server-ads";
 import { getCategory } from "@/data/categories";
 import { getWilaya } from "@/data/wilayas";
 import { getDictionary } from "@/lib/i18n";
@@ -14,17 +15,14 @@ type PageProps = {
   params: Promise<{ lang: string; slug: string }>;
 };
 
-export async function generateStaticParams() {
-  return ["fr", "ar"].flatMap((lang) =>
-    LISTINGS.map((l) => ({ lang, slug: l.slug }))
-  );
-}
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { lang, slug } = await params;
   const resolved = (isLang(lang) ? lang : normalizeLang(lang)) as "fr" | "ar";
-  const listing = getListingBySlug(slug);
-  if (!listing) return { title: "Not found" };
+  const ad = await getAdBySlug(slug);
+  if (!ad) return { title: "Not found" };
+  const listing = toPublicAd(ad);
   const title = resolved === "fr" ? listing.titleFr : listing.titleAr;
   return {
     title: `${title} - Souk.dz`,
@@ -36,14 +34,15 @@ export default async function AdDetailPage({ params }: PageProps) {
   const { lang, slug } = await params;
   const resolved = (isLang(lang) ? lang : normalizeLang(lang)) as "fr" | "ar";
   const dictionary = getDictionary(resolved);
-  const listing = getListingBySlug(slug);
-  if (!listing) {
+  const [ad, all] = await Promise.all([getAdBySlug(slug), listPublicAds()]);
+  if (!ad) {
     return <UserAdDetail lang={resolved} dictionary={dictionary} slug={slug} />;
   }
+  const listing = toPublicAd(ad);
 
   const category = getCategory(listing.categorySlug);
   const wilaya = getWilaya(listing.wilayaCode);
-  const similar = getSimilarListings(listing, 4);
+  const similar = getSimilarListings(all, listing, 4);
   const title = resolved === "fr" ? listing.titleFr : listing.titleAr;
   const description = resolved === "fr" ? listing.descriptionFr : listing.descriptionAr;
   const condition =

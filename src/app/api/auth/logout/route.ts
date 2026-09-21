@@ -1,16 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { SESSION_COOKIE } from "@/lib/server-auth";
+import {
+  createRouteClient,
+  isSupabaseConfigured,
+} from "@/utils/supabase/server";
 
 export const runtime = "nodejs";
 
 export async function POST(request: NextRequest) {
   const response = NextResponse.json({ ok: true });
-  response.cookies.set(SESSION_COOKIE, "", {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: 0,
-  });
+  if (isSupabaseConfigured()) {
+    try {
+      const supabase = createRouteClient(request, response);
+      await supabase.auth.signOut();
+    } catch (error) {
+      console.warn("[auth] logout error:", error);
+    }
+  }
   return response;
 }

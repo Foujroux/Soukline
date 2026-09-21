@@ -110,8 +110,6 @@ const fr = {
     accountMerchant: "Marchand",
     accountUserHint: "Je vends mes affaires personnelles",
     accountMerchantHint: "Je gère une boutique / entreprise",
-    demoHint:
-      "Comptes de démonstration : user@example.dz / user123 · merchant@example.dz / merchant123 · admin@example.dz / admin123",
   },
   dashboard: {
     title: "Mon compte",
@@ -320,8 +318,6 @@ const ar: typeof fr = {
     accountMerchant: "تاجر",
     accountUserHint: "أبيع أغراضي الشخصية",
     accountMerchantHint: "أدير متجرًا / مؤسسة",
-    demoHint:
-      "حسابات تجريبية: user@example.dz / user123 · merchant@example.dz / merchant123 · admin@example.dz / admin123",
   },
   dashboard: {
     title: "حسابي",

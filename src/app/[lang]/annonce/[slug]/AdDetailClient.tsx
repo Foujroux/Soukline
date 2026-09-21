@@ -15,13 +15,20 @@ export default function AdDetailClient({ lang, dictionary, listing }: Props) {
   const router = useRouter();
   const [showMessageForm, setShowMessageForm] = useState(false);
   const [messageText, setMessageText] = useState("");
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved] = useState(() => {
+    try {
+      const current: string[] = JSON.parse(localStorage.getItem("soukdz_saved") || "[]");
+      return current.includes(listing.slug);
+    } catch {
+      return false;
+    }
+  });
 
   const handleSave = () => {
     try {
       const key = "soukdz_saved";
       const current: string[] = JSON.parse(localStorage.getItem(key) || "[]");
-      const updated = saved ? current.filter((id) => id !== listing.id) : [...current, listing.id];
+      const updated = saved ? current.filter((id) => id !== listing.slug) : [...current, listing.slug];
       localStorage.setItem(key, JSON.stringify(updated));
       setSaved(!saved);
     } catch {

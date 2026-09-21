@@ -1,39 +1,67 @@
-import { randomBytes } from "crypto";
-import { mkdir, readFile, writeFile } from "fs/promises";
-import { tmpdir } from "os";
-import path from "path";
 import {
-  sanitizeText,
-  sanitizePhone,
   sanitizeEmail,
   sanitizeName,
+  sanitizePhone,
+  sanitizeText,
 } from "@/lib/sanitize";
 import type { AccountType } from "@/lib/auth-types";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import type { UserAd } from "@/lib/userAds";
+import { createAnonClient } from "@/utils/supabase/server";
+import { isSupabaseConfigured } from "@/utils/supabase/config";
 
-const ADS_FILE = path.join(tmpdir(), "soukline", "ads.json");
+const ADS_TABLE = "listings";
 
 export interface StoredAd extends UserAd {
   ownerId: string;
 }
 
-let adsCache: StoredAd[] | null = null;
-
-async function ensureStore(): Promise<StoredAd[]> {
-  if (adsCache) return adsCache;
-  try {
-    const raw = await readFile(ADS_FILE, "utf8");
-    adsCache = JSON.parse(raw) as StoredAd[];
-  } catch {
-    adsCache = [];
-  }
-  return adsCache;
+interface ListingRow {
+  id: string;
+  user_id: string;
+  slug: string;
+  category_slug: string | null;
+  title_fr: string | null;
+  title_ar: string | null;
+  description_fr: string | null;
+  description_ar: string | null;
+  price: number | string | null;
+  currency: string | null;
+  wilaya_code: number | null;
+  commune_fr: string | null;
+  commune_ar: string | null;
+  condition_fr: string | null;
+  condition_ar: string | null;
+  seller_fr: string | null;
+  seller_ar: string | null;
+  phone: string | null;
+  email: string | null;
+  views: number | null;
+  featured: boolean | null;
+  negotiable: boolean | null;
+  account_type: string | null;
+  images: string[] | null;
+  created_at: string | null;
 }
 
-async function writeStore(): Promise<void> {
-  if (!adsCache) return;
-  await mkdir(path.dirname(ADS_FILE), { recursive: true });
-  await writeFile(ADS_FILE, JSON.stringify(adsCache, null, 2), "utf8");
+let warnedOnce = false;
+
+function warnDbHint(error: { message?: string } | null, operation: string): void {
+  if (!error) return;
+  if (!warnedOnce) {
+    warnedOnce = true;
+    console.warn(
+      `[ads] ${operation}: Supabase returned: ${error.message}. ` +
+        "Make sure the `listings` table exists (run supabase/schema.sql) and RLS " +
+        "policies allow public reads."
+    );
+  } else {
+    console.warn(`[ads] ${operation}: ${error.message}`);
+  }
+}
+
+function getSupabase() {
+  return createAnonClient();
 }
 
 export function toPublicAd(ad: StoredAd): UserAd {
@@ -41,30 +69,97 @@ export function toPublicAd(ad: StoredAd): UserAd {
   return pub;
 }
 
+function rowToAd(row: ListingRow): StoredAd {
+  return {
+    id: row.id,
+    ownerId: row.user_id,
+    slug: row.slug,
+    categorySlug: row.category_slug ?? "services",
+    titleFr: row.title_fr ?? "",
+    titleAr: row.title_ar ?? "",
+    descriptionFr: row.description_fr ?? "",
+    descriptionAr: row.description_ar ?? "",
+    price: Number(row.price ?? 0),
+    currency: "DA",
+    wilayaCode: Number(row.wilaya_code ?? 0),
+    communeFr: row.commune_fr ?? "",
+    communeAr: row.commune_ar ?? "",
+    conditionFr: row.condition_fr ?? "",
+    conditionAr: row.condition_ar ?? "",
+    sellerFr: row.seller_fr ?? "",
+    sellerAr: row.seller_ar ?? "",
+    phone: row.phone ?? "",
+    email: row.email ?? "",
+    createdAt: row.created_at ?? new Date().toISOString(),
+    views: Number(row.views ?? 0),
+    featured: Boolean(row.featured),
+    negotiable: Boolean(row.negotiable),
+    accountType: (row.account_type as AccountType | null) ?? undefined,
+    images: Array.isArray(row.images) ? row.images : [],
+  };
+}
+
 export async function listAds(): Promise<StoredAd[]> {
-  return ensureStore();
+  if (!isSupabaseConfigured()) return [];
+  try {
+    const supabase = getSupabase();
+    const { data, error } = await supabase
+      .from(ADS_TABLE)
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) {
+      warnDbHint(error, "listAds");
+      return [];
+    }
+    return (data ?? []).map(rowToAd);
+  } catch (err) {
+    warnDbHint({ message: err instanceof Error ? err.message : String(err) }, "listAds");
+    return [];
+  }
 }
 
 export async function listPublicAds(): Promise<UserAd[]> {
-  return (await ensureStore()).map(toPublicAd);
+  return (await listAds()).map(toPublicAd);
 }
 
 export async function getAdBySlug(slug: string): Promise<StoredAd | undefined> {
-  return (await ensureStore()).find((a) => a.slug === slug);
+  if (!isSupabaseConfigured()) return undefined;
+  try {
+    const supabase = getSupabase();
+    const { data, error } = await supabase
+      .from(ADS_TABLE)
+      .select("*")
+      .eq("slug", slug)
+      .maybeSingle();
+    if (error || !data) {
+      warnDbHint(error, "getAdBySlug");
+      return undefined;
+    }
+    return rowToAd(data as ListingRow);
+  } catch (err) {
+    warnDbHint({ message: err instanceof Error ? err.message : String(err) }, "getAdBySlug");
+    return undefined;
+  }
 }
 
 export async function getAdsByOwner(ownerId: string): Promise<StoredAd[]> {
-  return (await ensureStore()).filter((a) => a.ownerId === ownerId);
-}
-
-function uniqSlug(base: string, existing: Set<string>): string {
-  let slug = base;
-  let n = 2;
-  while (existing.has(slug)) {
-    slug = `${base.slice(0, 54)}-${n++}`;
+  if (!isSupabaseConfigured()) return [];
+  try {
+    const supabase = getSupabase();
+    const { data, error } = await supabase
+      .from(ADS_TABLE)
+      .select("*")
+      .eq("user_id", ownerId)
+      .order("created_at", { ascending: false });
+    if (error) {
+      warnDbHint(error, "getAdsByOwner");
+      return [];
+    }
+    return (data ?? []).map(rowToAd);
+  } catch (err) {
+    warnDbHint({ message: err instanceof Error ? err.message : String(err) }, "getAdsByOwner");
+    return [];
   }
-  existing.add(slug);
-  return slug;
 }
 
 function toSlug(title: string): string {
@@ -78,68 +173,102 @@ function toSlug(title: string): string {
     .slice(0, 60);
 }
 
-export async function addAd(input: {
-  ownerId: string;
-  accountType: AccountType;
-  data: Omit<UserAd, "id" | "slug" | "createdAt" | "views" | "featured">;
-}): Promise<UserAd> {
-  const ads = await ensureStore();
-  const existingSlugs = new Set(ads.map((a) => a.slug));
+export async function addAd(
+  client: SupabaseClient,
+  input: {
+    ownerId: string;
+    accountType: AccountType;
+    data: Omit<UserAd, "id" | "slug" | "createdAt" | "views" | "featured">;
+  }
+): Promise<UserAd> {
+  if (!isSupabaseConfigured()) {
+    throw new Error("DATABASE_NOT_CONFIGURED");
+  }
+
   const titleFr = sanitizeText(input.data.titleFr, 90);
   const titleAr = sanitizeText(input.data.titleAr, 90);
   const rawTitle = titleFr || titleAr;
   if (!rawTitle) throw new Error("TITLE_REQUIRED");
 
-  const slug = uniqSlug(toSlug(rawTitle) || "annonce", existingSlugs);
-  const ad: StoredAd = {
-    id: randomBytes(16).toString("hex"),
-    slug,
-    categorySlug: sanitizeText(input.data.categorySlug, 40) || "services",
-    titleFr,
-    titleAr,
-    descriptionFr: sanitizeText(input.data.descriptionFr, 2000),
-    descriptionAr: sanitizeText(input.data.descriptionAr, 2000),
+  const images = Array.isArray(input.data.images)
+    ? input.data.images
+        .filter((src): src is string => typeof src === "string")
+        .map((s) => String(s).slice(0, 2_000_000))
+        .slice(0, 8)
+    : [];
+
+  const base = {
+    user_id: input.ownerId,
+    category_slug: sanitizeText(input.data.categorySlug, 40) || "services",
+    title_fr: titleFr,
+    title_ar: titleAr,
+    description_fr: sanitizeText(input.data.descriptionFr, 2000),
+    description_ar: sanitizeText(input.data.descriptionAr, 2000),
     price: Math.max(0, Math.floor(Number(input.data.price) || 0)),
     currency: "DA",
-    wilayaCode: Math.floor(Number(input.data.wilayaCode) || 0),
-    communeFr: sanitizeText(input.data.communeFr, 80),
-    communeAr: sanitizeText(input.data.communeAr, 80),
-    conditionFr: sanitizeText(input.data.conditionFr, 40),
-    conditionAr: sanitizeText(input.data.conditionAr, 40),
-    sellerFr: sanitizeName(input.data.sellerFr || input.data.sellerAr),
-    sellerAr: sanitizeName(input.data.sellerAr || input.data.sellerFr),
+    wilaya_code: Math.floor(Number(input.data.wilayaCode) || 0),
+    commune_fr: sanitizeText(input.data.communeFr, 80),
+    commune_ar: sanitizeText(input.data.communeAr, 80),
+    condition_fr: sanitizeText(input.data.conditionFr, 40),
+    condition_ar: sanitizeText(input.data.conditionAr, 40),
+    seller_fr: sanitizeName(input.data.sellerFr || input.data.sellerAr),
+    seller_ar: sanitizeName(input.data.sellerAr || input.data.sellerFr),
     phone: sanitizePhone(input.data.phone),
     email: sanitizeEmail(input.data.email),
-    createdAt: new Date().toISOString(),
-    views: 0,
-    featured: false,
     negotiable: Boolean(input.data.negotiable),
-    accountType: input.accountType,
-    images: Array.isArray(input.data.images)
-      ? input.data.images
-          .filter((src): src is string => typeof src === "string")
-          .map((s) => String(s).slice(0, 2_000_000))
-          .slice(0, 8)
-      : [],
-    ownerId: input.ownerId,
+    account_type: input.accountType,
+    images,
+    created_at: new Date().toISOString(),
   };
-  ads.unshift(ad);
-  await writeStore();
-  return toPublicAd(ad);
+
+  const supabase = client;
+  const baseSlug = toSlug(rawTitle) || "annonce";
+
+  for (let attempt = 1; attempt <= 8; attempt++) {
+    const slug = attempt === 1 ? baseSlug : `${baseSlug.slice(0, 54)}-${attempt}`;
+    const { data, error } = await supabase
+      .from(ADS_TABLE)
+      .insert({ ...base, slug })
+      .select("*")
+      .maybeSingle();
+
+    if (!error && data) return toPublicAd(rowToAd(data as ListingRow));
+
+    const isDuplicate = Boolean(
+      error && /duplicate key|already exists/i.test(error.message)
+    );
+    if (attempt < 8 && isDuplicate) continue;
+
+    console.error("[ads] addAd failed:", error?.message);
+    throw new Error(isDuplicate ? "SLUG_CONFLICT" : "DATABASE_ERROR");
+  }
+
+  throw new Error("DATABASE_ERROR");
 }
 
 export async function deleteAd(
+  client: SupabaseClient,
   slug: string,
   actor: { id: string; accountType: AccountType }
 ): Promise<boolean> {
-  const ads = await ensureStore();
-  const idx = ads.findIndex((a) => a.slug === slug);
-  if (idx === -1) return false;
-  const ad = ads[idx];
-  if (ad.ownerId !== actor.id && actor.accountType !== "admin") {
+  if (!isSupabaseConfigured()) return false;
+  const supabase = client;
+
+  const { data: existing, error: findError } = await supabase
+    .from(ADS_TABLE)
+    .select("user_id")
+    .eq("slug", slug)
+    .maybeSingle();
+  if (findError || !existing) {
+    warnDbHint(findError, "deleteAd");
+    return false;
+  }
+
+  if (existing.user_id !== actor.id && actor.accountType !== "admin") {
     throw new Error("FORBIDDEN");
   }
-  ads.splice(idx, 1);
-  await writeStore();
+
+  const { error } = await supabase.from(ADS_TABLE).delete().eq("slug", slug);
+  if (error) throw new Error("DATABASE_ERROR");
   return true;
 }

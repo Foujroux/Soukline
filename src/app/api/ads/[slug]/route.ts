@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getUserFromRequest } from "@/lib/server-auth";
+import { createReadClient } from "@/utils/supabase/server";
 import { deleteAd, getAdBySlug, toPublicAd } from "@/lib/server-ads";
 
 export const runtime = "nodejs";
@@ -26,7 +27,7 @@ export async function DELETE(
   }
   const { slug } = await params;
   try {
-    const deleted = await deleteAd(decodeURIComponent(slug), {
+    const deleted = await deleteAd(createReadClient(request), decodeURIComponent(slug), {
       id: user.id,
       accountType: user.accountType,
     });

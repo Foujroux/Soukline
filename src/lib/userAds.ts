@@ -164,6 +164,12 @@ export function getSavedIds(): string[] {
   }
 }
 
+export async function fetchSavedAds(): Promise<UserAd[]> {
+  const slugs = getSavedIds();
+  const ads = await Promise.all(slugs.map((slug) => fetchAdBySlug(slug)));
+  return ads.filter((ad): ad is UserAd => Boolean(ad));
+}
+
 export const CONDITIONS = {
   new: { fr: "Neuf", ar: "جديد" },
   veryGood: { fr: "Très bon état", ar: "حالة جيدة جدًا" },

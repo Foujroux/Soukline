@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { getDictionary } from "@/lib/i18n";
 import { isLang, normalizeLang } from "@/lib/lang";
 import { searchListings, sortListings, type SortOrder } from "@/data/listings";
+import { listPublicAds } from "@/lib/server-ads";
 import SearchResults from "@/components/SearchResults";
 import FilterSidebar from "@/components/layout/FilterSidebar";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
@@ -37,8 +38,10 @@ export default async function SearchPage({ params, searchParams }: PageProps) {
   const sort = sp.sort ?? "newest";
   const neg = sp.neg === "1";
 
+  const all = await listPublicAds();
+
   const listings = sortListings(
-    searchListings({
+    searchListings(all, {
       query: sp.q,
       wilayaCode: w,
       minPrice: min,
@@ -90,7 +93,7 @@ export default async function SearchPage({ params, searchParams }: PageProps) {
           <SearchResults
             lang={resolved}
             dictionary={dictionary}
-            staticListings={listings}
+            initialListings={listings}
             query={sp.q}
             wilayaCode={w}
             minPrice={min}

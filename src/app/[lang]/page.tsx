@@ -1,9 +1,9 @@
 import { isLang, normalizeLang } from "@/lib/lang";
 import { getDictionary } from "@/lib/i18n";
 import { CATEGORIES } from "@/data/categories";
-import { getFeaturedListings, LISTINGS } from "@/data/listings";
 import { ListingGrid } from "@/components/ListingCard";
 import { WILAYAS } from "@/data/wilayas";
+import { listPublicAds } from "@/lib/server-ads";
 import HomeLatest from "@/components/HomeLatest";
 import HomeFilters from "@/components/HomeFilters";
 import { HomeFiltersProvider } from "@/components/HomeFiltersProvider";
@@ -24,7 +24,11 @@ export default async function HomePage({
   const { lang } = await params;
   const resolved = (isLang(lang) ? lang : normalizeLang(lang)) as "fr" | "ar";
   const dictionary = getDictionary(resolved);
-  const featured = getFeaturedListings();
+  const all = await listPublicAds();
+  const featured = all
+    .filter((l) => l.featured)
+    .slice(0, 8);
+  const recent = all.slice(0, 8);
 
   return (
     <HomeFiltersProvider>
@@ -112,7 +116,7 @@ export default async function HomePage({
         <HomeLatest
           lang={resolved}
           dictionary={dictionary}
-          staticListings={LISTINGS}
+          initialListings={recent}
         />
       </section>
 

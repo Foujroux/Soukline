@@ -2,13 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { formatPrice, getListingBySlug, type Listing } from "@/data/listings";
+import { formatPrice, type Listing } from "@/data/listings";
 import { getCategory } from "@/data/categories";
 import { getWilaya } from "@/data/wilayas";
 import {
   deleteMyAd,
   fetchMyAds,
-  getSavedIds,
+  fetchSavedAds,
 } from "@/lib/userAds";
 import { accountTypeLabel, clearProfile, getProfile } from "@/lib/client-auth";
 import type { SessionUser } from "@/lib/auth-types";
@@ -27,15 +27,17 @@ export default function Dashboard({ lang, dictionary }: Props) {
   const [vote, setVote] = useState(0);
   const [profile, setProfile] = useState<SessionUser | null | undefined>(undefined);
   const [myAds, setMyAds] = useState<Listing[]>([]);
+  const [savedAds, setSavedAds] = useState<Listing[]>([]);
 
-  const savedIds = getSavedIds();
-  const savedListings = useMemo(
-    () =>
-      savedIds
-        .map((id) => getListingBySlug(id) ?? myAds.find((a) => a.id === id))
-        .filter(Boolean),
-    [savedIds, myAds]
-  );
+  useEffect(() => {
+    let cancelled = false;
+    fetchSavedAds().then((ads) => {
+      if (!cancelled) setSavedAds(ads as unknown as Listing[]);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     setVote((v) => v + 1);
@@ -106,7 +108,7 @@ export default function Dashboard({ lang, dictionary }: Props) {
   const tabs: { key: TabKey; label: string; icon: string; count?: number }[] = [
     { key: "overview", label: dictionary.dashboard.statisticTitle, icon: "📊" },
     { key: "ads", label: dictionary.dashboard.myAds, icon: "📢", count: myAds.length },
-    { key: "saved", label: dictionary.dashboard.saved, icon: "🔖", count: savedListings.length },
+    { key: "saved", label: dictionary.dashboard.saved, icon: "🔖", count: savedAds.length },
     ...(profile.accountType === "admin"
       ? [{ key: "moderation" as TabKey, label: lang === "fr" ? "Modération" : "الإشراف", icon: "🛡️", count: myAds.length }]
       : []),
@@ -202,7 +204,7 @@ export default function Dashboard({ lang, dictionary }: Props) {
           />
         )}
         {tab === "saved" && (
-          <SavedAds lang={lang} saved={savedListings as any[]} dictionary={dictionary} />
+          <SavedAds lang={lang} saved={savedAds as any[]} dictionary={dictionary} />
         )}
         {tab === "moderation" && profile.accountType === "admin" && (
           <ModerationAds

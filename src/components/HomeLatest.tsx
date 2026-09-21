@@ -9,12 +9,12 @@ import { useHomeFilters } from "./HomeFiltersProvider";
 interface Props {
   lang: "fr" | "ar";
   dictionary: Dictionary;
-  staticListings: Listing[];
+  initialListings?: Listing[];
 }
 
-export default function HomeLatest({ lang, dictionary, staticListings }: Props) {
+export default function HomeLatest({ lang, dictionary, initialListings }: Props) {
   const { sort, wilaya } = useHomeFilters();
-  const [listings, setListings] = useState<Listing[]>([]);
+  const [listings, setListings] = useState<Listing[]>(initialListings ?? []);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -31,19 +31,19 @@ export default function HomeLatest({ lang, dictionary, staticListings }: Props) 
       .then((data) => {
         if (cancelled) return;
         const userAds = (data && Array.isArray(data.ads) ? data.ads : []) as Listing[];
-        const result = mergeAndSort(staticListings, userAds, wilaya, sort);
-        setListings(result);
+        setListings(userAds);
         setLoading(false);
       })
       .catch(() => {
         if (cancelled) return;
-        setListings(mergeAndSort(staticListings, [], wilaya, sort));
+        setListings(initialListings?.slice(0, 8) ?? []);
         setLoading(false);
       });
     return () => {
       cancelled = true;
     };
-  }, [sort, wilaya, staticListings]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sort, wilaya]);
 
   const resultsLabel = dictionary.filters.results.replace(
     "{count}",
@@ -61,18 +61,6 @@ export default function HomeLatest({ lang, dictionary, staticListings }: Props) 
       </div>
     </div>
   );
-}
-
-function mergeAndSort(
-  staticListings: Listing[],
-  userAds: Listing[],
-  wilaya: number | "",
-  sort: SortOrder
-): Listing[] {
-  const staticFiltered = staticListings.filter(
-    (l) => wilaya === "" || l.wilayaCode === wilaya
-  );
-  return sortListings([...staticFiltered, ...userAds], sort);
 }
 
 function SkeletonGrid() {

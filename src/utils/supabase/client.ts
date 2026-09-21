@@ -1,10 +1,11 @@
 import { createBrowserClient } from "@supabase/ssr";
+import { isSupabaseConfigured, supabaseKey, supabaseUrl } from "./config";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-
-export const createClient = () =>
-  createBrowserClient(
-    supabaseUrl!,
-    supabaseKey!,
-  );
+export const createClient = () => {
+  if (!isSupabaseConfigured()) {
+    throw new Error(
+      "[supabase] Missing NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY (or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY)."
+    );
+  }
+  return createBrowserClient(supabaseUrl, supabaseKey);
+};
