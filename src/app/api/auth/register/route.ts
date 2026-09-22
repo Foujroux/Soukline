@@ -9,6 +9,7 @@ import {
 import {
   logEnvPresence,
   probeAuthHealth,
+  rootErrorMessage,
   serializeError,
 } from "@/lib/supabase-diag";
 import {
@@ -212,7 +213,7 @@ export async function POST(request: NextRequest) {
         // so the modal shows the actual system failure instead of a generic
         // "Une erreur est survenue".
         return NextResponse.json(
-          { error: error.message, cause: serializeError(0, anyError.cause) },
+          { error: rootErrorMessage(error), cause: serializeError(0, anyError.cause) },
           { status: 502 }
         );
       }
@@ -290,7 +291,7 @@ export async function POST(request: NextRequest) {
       NextResponse.json({ user: userToSessionUser(data.user) })
     );
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = rootErrorMessage(error);
     console.error("[auth] register unexpected error:", {
       email,
       message,

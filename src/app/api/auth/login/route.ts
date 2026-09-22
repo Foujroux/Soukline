@@ -7,6 +7,7 @@ import {
 import {
   logEnvPresence,
   probeAuthHealth,
+  rootErrorMessage,
   serializeError,
 } from "@/lib/supabase-diag";
 import {
@@ -114,7 +115,7 @@ export async function POST(request: NextRequest) {
         // modal shows the real failure instead of a masked
         // "Adresse e-mail ou mot de passe incorrect".
         return NextResponse.json(
-          { error: error?.message ?? "fetch failed", cause: serializeError(0, anyError?.cause) },
+          { error: rootErrorMessage(error), cause: serializeError(0, anyError?.cause) },
           { status: 502 }
         );
       }
@@ -125,7 +126,7 @@ export async function POST(request: NextRequest) {
     const response = NextResponse.json({ user: userToSessionUser(data.user) });
     return copySessionCookies(cookieJar, response);
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = rootErrorMessage(error);
     console.error("[auth] login unexpected error:", {
       email,
       message,

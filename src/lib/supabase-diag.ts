@@ -2,6 +2,24 @@
 // the real cause of an AuthRetryableFetchError ("fetch failed") visible in
 // Vercel logs and (temporarily) in the API JSON response.
 
+// Resolves the most specific message for an error, preferring the underlying
+// network cause over a generic wrapper (e.g. "fetch failed: getaddrinfo
+// ENOTFOUND x.supabase.co"). Used in API responses so failures don't collapse
+// into a plain "fetch failed" or a generic 401.
+export function rootErrorMessage(err: unknown): string {
+  if (err instanceof Error) {
+    if (
+      err.cause instanceof Error &&
+      err.cause.message &&
+      err.cause.message !== err.message
+    ) {
+      return `${err.message}: ${err.cause.message}`;
+    }
+    return err.message;
+  }
+  return String(err);
+}
+
 // Serializes an Error (and its `.cause` chain) so the true DNS/TLS/timeout
 // failure is visible in Vercel logs instead of just "fetch failed".
 export function serializeError(
