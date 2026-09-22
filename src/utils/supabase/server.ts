@@ -1,7 +1,12 @@
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import type { NextResponse } from "next/server";
-import { isSupabaseConfigured, supabaseKey, supabaseUrl } from "./config";
+import {
+  authHeaders,
+  isSupabaseConfigured,
+  supabaseKey,
+  supabaseUrl,
+} from "./config";
 
 export { isSupabaseConfigured };
 
@@ -44,7 +49,7 @@ export const createClient = (
         }
       },
     },
-    global: { fetch: fetch.bind(globalThis) },
+    global: { fetch: fetch.bind(globalThis), headers: authHeaders() },
   });
 };
 
@@ -68,7 +73,7 @@ export function createRouteClient(
         );
       },
     },
-    global: { fetch: fetch.bind(globalThis) },
+    global: { fetch: fetch.bind(globalThis), headers: authHeaders() },
   });
 }
 
@@ -85,7 +90,7 @@ export function createReadClient(request: Request) {
       },
     },
     auth: { persistSession: false },
-    global: { fetch: fetch.bind(globalThis) },
+    global: { fetch: fetch.bind(globalThis), headers: authHeaders() },
   });
 }
 
@@ -101,6 +106,6 @@ export function createAnonClient() {
       },
     },
     auth: { persistSession: false },
-    global: { fetch: fetch.bind(globalThis) },
+    global: { fetch: fetch.bind(globalThis), headers: authHeaders() },
   });
 }

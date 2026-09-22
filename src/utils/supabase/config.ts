@@ -34,6 +34,16 @@ export function isSupabaseConfigured(): boolean {
   return Boolean(supabaseUrl && supabaseKey);
 }
 
+// Explicit auth headers attached to every Supabase client. Sending both
+// `apikey` and `Authorization: Bearer ...` guarantees GoTrue accepts the key
+// whether it is a legacy JWT anon token or the new "sb_publishable_..."
+// format, instead of relying on the SDK's header derivation.
+export function authHeaders(): Record<string, string> {
+  const headers: Record<string, string> = { apikey: supabaseKey };
+  if (supabaseKey) headers.Authorization = `Bearer ${supabaseKey}`;
+  return headers;
+}
+
 export interface SupabaseConfigValidation {
   ok: boolean;
   /** Every finding (cosmetic warnings + fatal problems). */
@@ -122,6 +132,11 @@ export function validateSupabaseConfig(): SupabaseConfigValidation {
     }
     if (/^["']|["']$/.test(rawKey)) {
       issues.push("Supabase key is wrapped in quotes");
+    }
+    if (/^sb_publishable_/i.test(supabaseKey)) {
+      issues.push(
+        'Supabase key uses the new "sb_publishable_..." format; explicit apikey/Authorization headers are being sent'
+      );
     }
     if (!supabaseKey) {
       issues.push("Supabase key is empty after sanitization");

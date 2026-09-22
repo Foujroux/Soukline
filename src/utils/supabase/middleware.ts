@@ -1,6 +1,11 @@
 import { createServerClient } from "@supabase/ssr";
 import { type NextRequest, NextResponse } from "next/server";
-import { isSupabaseConfigured, supabaseKey, supabaseUrl } from "./config";
+import {
+  authHeaders,
+  isSupabaseConfigured,
+  supabaseKey,
+  supabaseUrl,
+} from "./config";
 
 export { isSupabaseConfigured };
 
@@ -41,7 +46,7 @@ export const createClient = async (request: NextRequest) => {
           )
         },
       },
-      global: { fetch: fetch.bind(globalThis) },
+global: { fetch: fetch.bind(globalThis), headers: authHeaders() },
     },
   );
 
