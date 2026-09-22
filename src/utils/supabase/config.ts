@@ -34,6 +34,12 @@ export function isSupabaseConfigured(): boolean {
   return Boolean(supabaseUrl && supabaseKey);
 }
 
+// Accepts the two supported Supabase API key formats: the legacy JWT anon key
+// ("eyJ...") and the new opaque publishable key ("sb_publishable_...").
+export function isValidKeyFormat(key: string): boolean {
+  return key.startsWith("eyJ") || key.startsWith("sb_publishable_");
+}
+
 // Explicit auth headers attached to every Supabase client. Sending both
 // `apikey` and `Authorization: Bearer ...` guarantees GoTrue accepts the key
 // whether it is a legacy JWT anon token or the new "sb_publishable_..."
@@ -133,14 +139,17 @@ export function validateSupabaseConfig(): SupabaseConfigValidation {
     if (/^["']|["']$/.test(rawKey)) {
       issues.push("Supabase key is wrapped in quotes");
     }
-    if (/^sb_publishable_/i.test(supabaseKey)) {
-      issues.push(
-        'Supabase key uses the new "sb_publishable_..." format; explicit apikey/Authorization headers are being sent'
-      );
-    }
     if (!supabaseKey) {
       issues.push("Supabase key is empty after sanitization");
       fatalIssues.push("Supabase key is empty after sanitization");
+    } else if (!isValidKeyFormat(supabaseKey)) {
+      issues.push(
+        `Supabase key format is unsupported (expected "eyJ..." JWT or "sb_publishable_..."); got prefix "${supabaseKey.slice(
+          0,
+          18
+        )}..."`
+      );
+      fatalIssues.push("Supabase key has an unsupported format");
     }
   }
 
