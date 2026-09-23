@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getUserFromRequest } from "@/lib/server-auth";
+import { getAuthContext } from "@/lib/server-auth";
 import { addAd, listAds } from "@/lib/server-ads";
-import { createReadClient } from "@/utils/supabase/server";
 import { normalizeSearchText, sortListings, type SortOrder } from "@/data/listings";
 import type { UserAd } from "@/lib/userAds";
 
@@ -60,8 +59,8 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const user = await getUserFromRequest(request);
-  if (!user) {
+  const auth = await getAuthContext();
+  if (!auth) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
 
@@ -82,9 +81,9 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const ad = await addAd(createReadClient(request), {
-      ownerId: user.id,
-      accountType: user.accountType,
+    const ad = await addAd(auth.supabase, {
+      ownerId: auth.user.id,
+      accountType: auth.user.accountType,
       data: {
         categorySlug: data.categorySlug ?? "",
         titleFr: data.titleFr ?? "",
@@ -111,6 +110,9 @@ export async function POST(request: NextRequest) {
     const message = err instanceof Error ? err.message : "INTERNAL_ERROR";
     if (message === "TITLE_REQUIRED") {
       return NextResponse.json({ error: message }, { status: 400 });
+    }
+    if (message === "AD_LIMIT_REACHED") {
+      return NextResponse.json({ error: message }, { status: 403 });
     }
     return NextResponse.json({ error: "INTERNAL_ERROR" }, { status: 500 });
   }

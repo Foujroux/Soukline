@@ -5,6 +5,7 @@ import {
   sanitizeText,
 } from "@/lib/sanitize";
 import type { AccountType } from "@/lib/auth-types";
+import { maxAdsFor, maxImagesFor } from "@/lib/ads-limits";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { UserAd } from "@/lib/userAds";
 import { createAnonClient } from "@/utils/supabase/server";
@@ -185,6 +186,16 @@ export async function addAd(
     throw new Error("DATABASE_NOT_CONFIGURED");
   }
 
+  const maxImages = maxImagesFor(input.accountType);
+  const maxAds = maxAdsFor(input.accountType);
+
+  const { count, error: countError } = await client
+    .from(ADS_TABLE)
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", input.ownerId);
+  if (countError) throw new Error("DATABASE_ERROR");
+  if ((count ?? 0) >= maxAds) throw new Error("AD_LIMIT_REACHED");
+
   const titleFr = sanitizeText(input.data.titleFr, 90);
   const titleAr = sanitizeText(input.data.titleAr, 90);
   const rawTitle = titleFr || titleAr;
@@ -194,7 +205,7 @@ export async function addAd(
     ? input.data.images
         .filter((src): src is string => typeof src === "string")
         .map((s) => String(s).slice(0, 2_000_000))
-        .slice(0, 8)
+        .slice(0, maxImages)
     : [];
 
   const base = {

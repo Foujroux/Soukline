@@ -141,7 +141,11 @@ export async function publishAd(ad: UserAd): Promise<UserAd> {
   });
   const data = (await res.json().catch(() => null)) as { ad?: UserAd; error?: string } | null;
   if (!res.ok || !data?.ad) {
-    throw new Error(data?.error === "UNAUTHORIZED" ? "UNAUTHORIZED" : "FAILED_TO_PUBLISH");
+    throw new Error(
+      data?.error === "UNAUTHORIZED" || data?.error === "AD_LIMIT_REACHED"
+        ? data.error
+        : "FAILED_TO_PUBLISH"
+    );
   }
   return data.ad;
 }

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getUserFromRequest } from "@/lib/server-auth";
-import { createReadClient } from "@/utils/supabase/server";
+import { getAuthContext } from "@/lib/server-auth";
 import { deleteAd, getAdBySlug, toPublicAd } from "@/lib/server-ads";
 
 export const runtime = "nodejs";
@@ -21,15 +20,15 @@ export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ slug: string }> }
 ) {
-  const user = await getUserFromRequest(request);
-  if (!user) {
+  const auth = await getAuthContext();
+  if (!auth) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }
   const { slug } = await params;
   try {
-    const deleted = await deleteAd(createReadClient(request), decodeURIComponent(slug), {
-      id: user.id,
-      accountType: user.accountType,
+    const deleted = await deleteAd(auth.supabase, decodeURIComponent(slug), {
+      id: auth.user.id,
+      accountType: auth.user.accountType,
     });
     if (!deleted) {
       return NextResponse.json({ error: "NOT_FOUND" }, { status: 404 });

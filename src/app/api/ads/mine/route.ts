@@ -5,7 +5,7 @@ import { getAdsByOwner, toPublicAd } from "@/lib/server-ads";
 export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
-  const user = await getUserFromRequest(request);
+  const user = await getUserFromRequest();
   if (!user) {
     return NextResponse.json({ error: "UNAUTHORIZED" }, { status: 401 });
   }

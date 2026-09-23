@@ -6,6 +6,7 @@ import { CATEGORIES } from "@/data/categories";
 import { WILAYAS } from "@/data/wilayas";
 import { publishAd, conditionLabel, CONDITIONS, type UserAd } from "@/lib/userAds";
 import { getCachedUser, getProfile } from "@/lib/client-auth";
+import { maxImagesFor } from "@/lib/ads-limits";
 import type { Dictionary } from "@/lib/dictionary";
 
 interface Props {
@@ -17,6 +18,7 @@ export default function PostAdForm({ lang, dictionary }: Props) {
   const router = useRouter();
   const fileRef = useRef<HTMLInputElement>(null);
   const [images, setImages] = useState<string[]>([]);
+  const [maxImages, setMaxImages] = useState(5);
   const [optimizing, setOptimizing] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -25,7 +27,9 @@ export default function PostAdForm({ lang, dictionary }: Props) {
   useEffect(() => {
     let cancelled = false;
     getProfile().then((profile) => {
-      if (!cancelled && !profile) {
+      if (cancelled) return;
+      setMaxImages(maxImagesFor(profile?.accountType ?? "user"));
+      if (!profile) {
         router.replace(`/${lang}/connexion`);
       }
     });
@@ -40,7 +44,7 @@ export default function PostAdForm({ lang, dictionary }: Props) {
     try {
       const additions: string[] = [];
       for (const file of Array.from(files)) {
-        if (additions.length + images.length >= 8) break;
+        if (additions.length + images.length >= maxImages) break;
         const dataUrl = await compressImage(file);
         if (dataUrl) additions.push(dataUrl);
       }
@@ -112,9 +116,13 @@ export default function PostAdForm({ lang, dictionary }: Props) {
           ? lang === "fr"
             ? "Votre session a expiré. Veuillez vous reconnecter."
             : "انتهت جلستك. يرجى تسجيل الدخول من جديد."
-          : lang === "fr"
-            ? "Échec de la publication. Réessayez dans un instant."
-            : "تعذّر نشر الإعلان. حاول مجددًا بعد قليل."
+          : err instanceof Error && err.message === "AD_LIMIT_REACHED"
+            ? lang === "fr"
+              ? "Vous avez atteint la limite d'annonces de votre compte."
+              : "لقد وصلت إلى الحد الأقصى لعدد الإعلانات في حسابك."
+            : lang === "fr"
+              ? "Échec de la publication. Réessayez dans un instant."
+              : "تعذّر نشر الإعلان. حاول مجددًا بعد قليل."
       );
     }
   }
@@ -307,7 +315,7 @@ export default function PostAdForm({ lang, dictionary }: Props) {
         {images.length > 0 && (
           <>
             <p className="mt-3 text-xs font-semibold text-slate-500">
-              {images.length} {dictionary.create.photoUploaded}
+              {images.length}/{maxImages} {dictionary.create.photoUploaded}
             </p>
             <div className="mt-2 grid grid-cols-3 gap-2 sm:grid-cols-4">
               {images.map((src, i) => (

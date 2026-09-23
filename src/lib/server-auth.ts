@@ -1,6 +1,9 @@
 import type { User } from "@supabase/supabase-js";
 import type { AccountType, SessionUser } from "@/lib/auth-types";
-import { createReadClient } from "@/utils/supabase/server";
+import {
+  createSupabaseContext,
+  type AppContext,
+} from "@/utils/supabase/context";
 import { isSupabaseConfigured } from "@/utils/supabase/config";
 
 const VALID: readonly AccountType[] = ["user", "merchant", "admin"];
@@ -29,15 +32,28 @@ export function userToSessionUser(user: User): SessionUser {
 
 /**
  * Resolves the authenticated Supabase user from the request cookies and maps
- * it to the SessionUser shape used across the app. Session refresh is handled
- * by the middleware, so this helper is read-only.
+ * it to the SessionUser shape used across the app. The access token cookie is
+ * first verified against the project JWKS (verifyCredentials); the full User
+ * object is then fetched via getUser() on the RLS-scoped context client.
  */
-export async function getUserFromRequest(
-  request: Request
-): Promise<SessionUser | null> {
+export interface AuthContext extends AppContext {
+  user: SessionUser;
+}
+
+export async function getAuthContext(): Promise<AuthContext | null> {
   if (!isSupabaseConfigured()) return null;
-  const supabase = createReadClient(request);
-  const { data, error } = await supabase.auth.getUser();
-  if (error || !data.user) return null;
-  return userToSessionUser(data.user);
+  const { data: ctx, error } = await createSupabaseContext({ auth: "user" });
+  if (error || !ctx || !ctx.userClaims) return null;
+  const { data, error: userError } = await ctx.supabase.auth.getUser();
+  if (userError || !data.user) return null;
+  return { ...ctx, user: userToSessionUser(data.user) };
+}
+
+/**
+ * Resolves the authenticated session user from the incoming request cookies,
+ * or null when there is no valid session.
+ */
+export async function getUserFromRequest(): Promise<SessionUser | null> {
+  const ctx = await getAuthContext();
+  return ctx?.user ?? null;
 }
