@@ -1,9 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/utils/supabase/client";
 import type { Listing } from "@/data/listings";
 import type { Dictionary } from "@/lib/dictionary";
+
+// Remembers ids already counted this session so a remount (client navigation,
+// React StrictMode double-invoke in dev) never inflates the counter.
+const countedListings = new Set<string>();
 
 interface Props {
   lang: "fr" | "ar";
@@ -13,6 +18,7 @@ interface Props {
 
 export default function AdDetailClient({ lang, dictionary, listing }: Props) {
   const router = useRouter();
+  const viewCountedRef = useRef(false);
   const [showMessageForm, setShowMessageForm] = useState(false);
   const [messageText, setMessageText] = useState("");
   const [saved, setSaved] = useState(() => {
@@ -23,6 +29,23 @@ export default function AdDetailClient({ lang, dictionary, listing }: Props) {
       return false;
     }
   });
+
+  useEffect(() => {
+    if (viewCountedRef.current) return;
+    viewCountedRef.current = true;
+    if (countedListings.has(listing.id)) return;
+    countedListings.add(listing.id);
+
+    const registerView = async () => {
+      try {
+        const supabase = createClient();
+        await supabase.rpc("increment_ads_view", { listing_id: listing.id });
+      } catch {
+        // never let view tracking break the page
+      }
+    };
+    void registerView();
+  }, [listing.id]);
 
   const handleSave = () => {
     try {
