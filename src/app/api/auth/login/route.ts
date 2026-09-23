@@ -4,17 +4,8 @@ import {
   createRouteClient,
   isSupabaseConfigured,
 } from "@/utils/supabase/server";
-import {
-  logEnvPresence,
-  probeAuthHealth,
-  rootErrorMessage,
-  serializeError,
-} from "@/lib/supabase-diag";
-import {
-  logSupabaseConfig,
-  supabaseUrl,
-  validateSupabaseConfig,
-} from "@/utils/supabase/config";
+import { rootErrorMessage, serializeError } from "@/lib/supabase-diag";
+import { validateSupabaseConfig } from "@/utils/supabase/config";
 
 export const runtime = "nodejs";
 
@@ -44,35 +35,15 @@ export async function POST(request: NextRequest) {
   // generic error.
   const validation = validateSupabaseConfig();
   if (!validation.ok || !isSupabaseConfigured()) {
-    logSupabaseConfig("login");
     console.error(
       "[auth] login blocked: invalid Supabase configuration",
       validation.fatalIssues
     );
     return NextResponse.json({ error: "AUTH_NOT_CONFIGURED" }, { status: 500 });
   }
-  if (validation.issues.length > 0) {
-    // Cosmetic issues (quotes / whitespace) are auto-sanitized by config, but
-    // still surface them so the deployment env vars can be cleaned up.
-    logSupabaseConfig("login");
-  }
-
-  // ── Diagnostic instrumentation (temporary, for the 500 "fetch failed" hunt).
-  // Direct raw network + env checks BEFORE any SDK auth call.
-  logEnvPresence("login");
-  await probeAuthHealth("login", supabaseUrl);
 
   const cookieJar = NextResponse.json({});
   const supabase = createRouteClient(request, cookieJar);
-
-  // Log the exact URL the Supabase SDK will call against, so a wrong/missing
-  // scheme or a mistyped hostname is visible in Vercel logs right at the line
-  // where "fetch failed" is thrown.
-  console.log("Supabase URL Target:", {
-    raw: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "undefined",
-    effective: supabaseUrl,
-    hasHttpsPrefix: supabaseUrl.startsWith("https://"),
-  });
 
   try {
     const { data, error } = await supabase.auth.signInWithPassword({
@@ -111,13 +82,11 @@ export async function POST(request: NextRequest) {
       }
 
       if (isFetchFailure) {
-        // Diagnostic: temporarily expose the raw network error so the login
-        // modal shows the real failure instead of a masked
-        // "Adresse e-mail ou mot de passe incorrect".
-        return NextResponse.json(
-          { error: rootErrorMessage(error), cause: serializeError(0, anyError?.cause) },
-          { status: 502 }
-        );
+        console.error("[auth] login signIn network-layer error:", {
+          email,
+          error: rootErrorMessage(error),
+          cause: serializeError(0, anyError?.cause),
+        });
       }
 
       return NextResponse.json({ error: "INVALID_CREDENTIALS" }, { status: 401 });
@@ -132,12 +101,7 @@ export async function POST(request: NextRequest) {
       message,
       error: serializeError(0, error),
     });
-    // Diagnostic: expose the raw error so the modal displays the actual system
-    // error instead of "Adresse e-mail ou mot de passe incorrect".
-    return NextResponse.json(
-      { error: message, cause: serializeError(0, error) },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "INTERNAL" }, { status: 500 });
   }
 }
 

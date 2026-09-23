@@ -6,17 +6,8 @@ import {
   createRouteClient,
   isSupabaseConfigured,
 } from "@/utils/supabase/server";
-import {
-  logEnvPresence,
-  probeAuthHealth,
-  rootErrorMessage,
-  serializeError,
-} from "@/lib/supabase-diag";
-import {
-  logSupabaseConfig,
-  supabaseUrl,
-  validateSupabaseConfig,
-} from "@/utils/supabase/config";
+import { rootErrorMessage, serializeError } from "@/lib/supabase-diag";
+import { validateSupabaseConfig } from "@/utils/supabase/config";
 
 export const runtime = "nodejs";
 
@@ -121,23 +112,12 @@ export async function POST(request: NextRequest) {
   // generic error.
   const validation = validateSupabaseConfig();
   if (!validation.ok || !isSupabaseConfigured()) {
-    logSupabaseConfig("register");
     console.error(
       "[auth] registration blocked: invalid Supabase configuration",
       validation.fatalIssues
     );
     return NextResponse.json({ error: "AUTH_NOT_CONFIGURED" }, { status: 500 });
   }
-  if (validation.issues.length > 0) {
-    // Cosmetic issues (quotes / whitespace) are auto-sanitized by config, but
-    // still surface them so the deployment env vars can be cleaned up.
-    logSupabaseConfig("register");
-  }
-
-  // ── Diagnostic instrumentation (temporary, for the 500 "fetch failed" hunt).
-  // Direct raw network + env checks BEFORE any SDK auth call.
-  logEnvPresence("register");
-  await probeAuthHealth("register", supabaseUrl);
 
   const name = sanitizeName(String(body.name ?? "").trim());
   const email = String(body.email ?? "").trim().toLowerCase();
@@ -162,15 +142,6 @@ export async function POST(request: NextRequest) {
 
   const cookieJar = NextResponse.json({});
   const supabase = createRouteClient(request, cookieJar);
-
-  // Log the exact URL the Supabase SDK will call against, so a wrong/missing
-  // scheme or a mistyped hostname is visible in Vercel logs right at the line
-  // where "fetch failed" is thrown.
-  console.log("Supabase URL Target:", {
-    raw: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "undefined",
-    effective: supabaseUrl,
-    hasHttpsPrefix: supabaseUrl.startsWith("https://"),
-  });
 
   try {
     const { data, error } = await supabase.auth.signUp({
@@ -209,13 +180,11 @@ export async function POST(request: NextRequest) {
         stack: anyError.stack ?? null,
       });
       if (isFetchFailure) {
-        // Diagnostic: temporarily return the raw network error to the frontend
-        // so the modal shows the actual system failure instead of a generic
-        // "Une erreur est survenue".
-        return NextResponse.json(
-          { error: rootErrorMessage(error), cause: serializeError(0, anyError.cause) },
-          { status: 502 }
-        );
+        console.error("[auth] register signUp network-layer error:", {
+          email,
+          message: error.message,
+          cause: serializeError(0, anyError.cause),
+        });
       }
       return NextResponse.json(
         { error: classified.code },
@@ -297,11 +266,6 @@ export async function POST(request: NextRequest) {
       message,
       error: serializeError(0, error),
     });
-    // Diagnostic: expose the raw error to the frontend so the modal displays
-    // the actual system error instead of "Une erreur est survenue".
-    return NextResponse.json(
-      { error: message, cause: serializeError(0, error) },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "INTERNAL" }, { status: 500 });
   }
 }
