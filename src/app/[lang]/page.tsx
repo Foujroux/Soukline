@@ -55,7 +55,6 @@ export default async function HomePage({
                 {dictionary.hero.subtitle}
               </p>
               <HeroSearch lang={resolved} dictionary={dictionary} />
-              <HomeFilters lang={resolved} dictionary={dictionary} />
               <p className="mt-3 flex items-center gap-2 text-sm font-medium text-emerald-50/80">
                 <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-amber-400" />
                 {dictionary.hero.adsCount}
@@ -99,6 +98,7 @@ export default async function HomePage({
           lang={resolved}
           dictionary={dictionary}
         />
+        <HomeFilters lang={resolved} dictionary={dictionary} />
       </section>
 
       {/* Latest ads */}
