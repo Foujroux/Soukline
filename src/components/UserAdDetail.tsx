@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { fetchAdBySlug } from "@/lib/userAds";
 import { formatPrice, type Listing } from "@/data/listings";
-import { getCategory } from "@/data/categories";
+import { getCategory, getCategoryTone } from "@/data/categories";
 import { getWilaya } from "@/data/wilayas";
 import type { Dictionary } from "@/lib/dictionary";
 import NotFoundContent from "@/components/NotFoundContent";
@@ -55,6 +55,7 @@ export default function UserAdDetail({ lang, dictionary, slug }: Props) {
               images={ad.images}
               alt={title}
               lang={lang}
+              coverClassName={getCategoryTone(category).cover}
               placeholder={
                 <span className="text-8xl opacity-90">{category?.emoji ?? "📦"}</span>
               }

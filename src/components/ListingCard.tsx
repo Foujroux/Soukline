@@ -1,14 +1,14 @@
 import Link from "next/link";
 import type { Listing } from "@/data/listings";
 import { formatPrice } from "@/data/listings";
-import { getCategory } from "@/data/categories";
+import { getCategory, getCategoryTone } from "@/data/categories";
 import { getWilaya } from "@/data/wilayas";
 import ShareButton from "@/components/ShareButton";
 
 function PlaceholderImage({ cat, className }: { cat: string; className?: string }) {
   return (
     <div
-      className={`relative flex items-center justify-center overflow-hidden bg-gradient-to-br from-emerald-600 via-teal-500 to-emerald-700 ${className ?? ""}`}
+      className={`relative flex items-center justify-center overflow-hidden ${getCategoryTone(getCategory(cat)).cover} ${className ?? ""}`}
     >
       <span className="text-6xl opacity-90">{getCategory(cat)?.emoji ?? "📦"}</span>
       <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />

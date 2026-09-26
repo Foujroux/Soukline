@@ -1,6 +1,6 @@
 import { isLang, normalizeLang } from "@/lib/lang";
 import { getDictionary } from "@/lib/i18n";
-import { CATEGORIES } from "@/data/categories";
+import { CATEGORIES, getCategoryTone } from "@/data/categories";
 import { ListingGrid } from "@/components/ListingCard";
 import { WILAYAS } from "@/data/wilayas";
 import { listPublicAds } from "@/lib/server-ads";
@@ -160,7 +160,9 @@ function CategoryGrid({
           href={`/${lang}/categorie/${cat.slug}`}
           className="group flex flex-col items-center gap-2 rounded-2xl border border-slate-200 bg-white p-5 text-center shadow-sm transition-all hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md"
         >
-          <span className="grid h-14 w-14 place-items-center rounded-2xl bg-gradient-to-br from-emerald-50 to-teal-100 text-3xl transition-transform group-hover:scale-110">
+          <span
+            className={`grid h-14 w-14 place-items-center rounded-2xl text-3xl transition-transform group-hover:scale-110 ${getCategoryTone(cat).tile}`}
+          >
             <span aria-hidden>{cat.emoji}</span>
           </span>
           <span className="text-sm font-bold text-slate-800">

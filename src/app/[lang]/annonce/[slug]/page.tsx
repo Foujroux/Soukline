@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { formatPrice, getSimilarListings } from "@/data/listings";
 import { getAdBySlug, listPublicAds, toPublicAd } from "@/lib/server-ads";
-import { getCategory } from "@/data/categories";
+import { getCategory, getCategoryTone } from "@/data/categories";
 import { getWilaya } from "@/data/wilayas";
 import { getDictionary } from "@/lib/i18n";
 import { isLang, normalizeLang } from "@/lib/lang";
@@ -74,6 +74,7 @@ export default async function AdDetailPage({ params }: PageProps) {
                 images={listing.images}
                 alt={title}
                 lang={resolved}
+                coverClassName={getCategoryTone(category).cover}
                 placeholder={
                   <>
                     <span className="text-8xl opacity-90">{category?.emoji ?? "📦"}</span>

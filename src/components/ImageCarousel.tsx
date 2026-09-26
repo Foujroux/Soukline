@@ -7,6 +7,8 @@ interface ImageCarouselProps {
   alt: string;
   lang: "fr" | "ar";
   placeholder?: React.ReactNode;
+  /** Overrides the placeholder gradient, e.g. with the category's own tone. */
+  coverClassName?: string;
 }
 
 export default function ImageCarousel({
@@ -14,6 +16,7 @@ export default function ImageCarousel({
   alt,
   lang,
   placeholder,
+  coverClassName,
 }: ImageCarouselProps) {
   const [current, setCurrent] = useState(0);
   const count = images.length;
@@ -37,7 +40,11 @@ export default function ImageCarousel({
 
   if (count === 0) {
     return (
-      <div className="relative flex aspect-[16/10] items-center justify-center overflow-hidden bg-gradient-to-br from-emerald-600 via-teal-500 to-emerald-700">
+      <div
+        className={`relative flex aspect-[16/10] items-center justify-center overflow-hidden ${
+          coverClassName ?? "bg-gradient-to-br from-emerald-600 via-teal-500 to-emerald-700"
+        }`}
+      >
         {placeholder}
       </div>
     );
