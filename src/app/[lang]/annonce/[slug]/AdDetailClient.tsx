@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
 import type { Listing } from "@/data/listings";
 import type { Dictionary } from "@/lib/dictionary";
+import ShareButton from "@/components/ShareButton";
 
 // Remembers ids already counted this session so a remount (client navigation,
 // React StrictMode double-invoke in dev) never inflates the counter.
@@ -56,22 +57,6 @@ export default function AdDetailClient({ lang, dictionary, listing }: Props) {
       setSaved(!saved);
     } catch {
       // silently fail
-    }
-  };
-
-  const handleShare = async () => {
-    const url = typeof window !== "undefined" ? window.location.href : "";
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: lang === "fr" ? listing.titleFr : listing.titleAr,
-          url,
-        });
-      } catch {
-        // user cancelled
-      }
-    } else {
-      await navigator.clipboard.writeText(url);
     }
   };
 
@@ -171,14 +156,12 @@ export default function AdDetailClient({ lang, dictionary, listing }: Props) {
           {saved ? dictionary.listing.saved : dictionary.listing.save}
         </button>
 
-        <button
-          type="button"
-          onClick={handleShare}
-          className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700 transition-colors hover:border-emerald-300 hover:bg-emerald-50"
-        >
-          <ShareIcon />
-          {dictionary.listing.share}
-        </button>
+        <ShareButton
+          lang={lang}
+          dictionary={dictionary}
+          href={`/${lang}/annonce/${listing.slug}`}
+          title={lang === "fr" ? listing.titleFr : listing.titleAr}
+        />
 
         <button
           type="button"
@@ -229,17 +212,6 @@ function BookmarkIcon({ filled }: { filled: boolean }) {
   ) : (
     <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
       <path d="M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2v16z" />
-    </svg>
-  );
-}
-
-function ShareIcon() {
-  return (
-    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <circle cx="18" cy="5" r="3" />
-      <circle cx="6" cy="12" r="3" />
-      <circle cx="18" cy="19" r="3" />
-      <path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98" />
     </svg>
   );
 }

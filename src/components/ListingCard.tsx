@@ -3,6 +3,7 @@ import type { Listing } from "@/data/listings";
 import { formatPrice } from "@/data/listings";
 import { getCategory } from "@/data/categories";
 import { getWilaya } from "@/data/wilayas";
+import ShareButton from "@/components/ShareButton";
 
 function PlaceholderImage({ cat, className }: { cat: string; className?: string }) {
   return (
@@ -44,10 +45,13 @@ export function ListingCard({
   const categoryLabel = lang === "fr" ? category?.fr ?? "" : category?.ar ?? "";
 
   return (
-    <Link
-      href={`/${lang}/annonce/${listing.slug}`}
-      className="group flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-lg"
-    >
+    <article className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-lg">
+      {/* Overlay keeps the whole card clickable while the share button stays
+          a real button on top of it instead of being nested in the anchor. */}
+      <Link href={`/${lang}/annonce/${listing.slug}`} className="absolute inset-0 z-10">
+        <span className="sr-only">{title}</span>
+      </Link>
+
       <div className="relative aspect-[4/3] overflow-hidden">
         {listing.images.length > 0 ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -103,7 +107,18 @@ export function ListingCard({
           <span className="text-[11px] text-slate-400">{formatViews(listing.views, lang)}</span>
         </div>
       </div>
-    </Link>
+
+      <div className="absolute top-2 ltr:right-2 rtl:left-2 z-20">
+        <ShareButton
+          lang={lang}
+          dictionary={dictionary}
+          href={`/${lang}/annonce/${listing.slug}`}
+          title={title}
+          variant="icon"
+          label={dictionary?.share?.shareListing}
+        />
+      </div>
+    </article>
   );
 }
 

@@ -206,6 +206,27 @@ const fr = {
     notFoundText: "La page que vous recherchez n'existe pas ou a été déplacée.",
     goHome: "Retour à l'accueil",
   },
+  share: {
+    shareVia: "Partager via",
+    copyLink: "Copier le lien",
+    copied: "Lien copié",
+    copyFailed: "Copie impossible",
+    whatsapp: "WhatsApp",
+    facebook: "Facebook",
+    x: "X",
+    telegram: "Telegram",
+    email: "E-mail",
+    sms: "SMS",
+    shareListing: "Partager l'annonce",
+    sharePage: "Partager la page",
+    shareApp: "Partager l'app",
+    appTitle: "Souk.dz — Petites annonces en Algérie",
+    appText:
+      "Petites annonces gratuites dans les 58 wilayas : achetez, vendez et échangez partout en Algérie sur Souk.dz.",
+    appInviteTitle: "Faites connaître Souk.dz",
+    appInviteText:
+      "Invitez vos amis à publier et à vendre gratuitement leurs annonces sur Souk.dz.",
+  },
 };
 
 const ar: typeof fr = {
@@ -413,6 +434,27 @@ const ar: typeof fr = {
     notFound: "الصفحة غير موجودة",
     notFoundText: "الصفحة التي تبحث عنها غير موجودة أو تم نقلها.",
     goHome: "العودة إلى الرئيسية",
+  },
+  share: {
+    shareVia: "المشاركة عبر",
+    copyLink: "نسخ الرابط",
+    copied: "تم نسخ الرابط",
+    copyFailed: "تعذر النسخ",
+    whatsapp: "واتساب",
+    facebook: "فيسبوك",
+    x: "إكس",
+    telegram: "تيليغرام",
+    email: "البريد الإلكتروني",
+    sms: "رسالة نصية",
+    shareListing: "مشاركة الإعلان",
+    sharePage: "مشاركة الصفحة",
+    shareApp: "شارك التطبيق",
+    appTitle: "سوقدز — الإعلانات المبوبة في الجزائر",
+    appText:
+      "إعلانات مبوّبة مجانية في الولايات الـ58: اشترِ وبِع وتبادل في كل الجزائر عبر سوقدز.",
+    appInviteTitle: "دع其他人 يكتشفون سوقدز",
+    appInviteText:
+      "ادعُ أصدقاءك لنشر وبيع إعلاناتهم مجانًا على سوقدز.",
   },
 };
 

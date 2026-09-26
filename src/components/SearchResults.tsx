@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { fetchPublicAds } from "@/lib/userAds";
 import { ListingGrid } from "@/components/ListingCard";
+import ShareButton from "@/components/ShareButton";
 import type { Listing, SortOrder } from "@/data/listings";
 import type { Dictionary } from "@/lib/dictionary";
 
@@ -75,11 +76,20 @@ export default function SearchResults({
 
   return (
     <>
-      <p className="mt-1 text-sm text-slate-500">
-        {allListings.length === 1
-          ? `${allListings.length} ${lang === "fr" ? "annonce trouvée" : "إعلان تم العثور عليها"}`
-          : `${allListings.length} ${lang === "fr" ? "annonces trouvées" : "إعلان تم العثور عليها"}`}
-      </p>
+      <div className="mt-1 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-sm text-slate-500">
+          {allListings.length === 1
+            ? `${allListings.length} ${lang === "fr" ? "annonce trouvée" : "إعلان تم العثور عليها"}`
+            : `${allListings.length} ${lang === "fr" ? "annonces trouvées" : "إعلان تم العثور عليها"}`}
+        </p>
+        <ShareButton
+          lang={lang}
+          dictionary={dictionary}
+          title={dictionary.share.sharePage}
+          label={dictionary.share.sharePage}
+          className="px-4 py-2 text-xs"
+        />
+      </div>
       <div className="mt-5">
         <ListingGrid listings={allListings} lang={lang} dictionary={dictionary} />
       </div>
