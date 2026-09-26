@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { login, register } from "@/lib/client-auth";
+import SocialAuth from "@/components/forms/SocialAuth";
 import type { Dictionary } from "@/lib/dictionary";
 
 interface Props {
@@ -161,6 +162,8 @@ export default function AuthForm({ lang, dictionary, mode }: Props) {
         <h1 className="text-center text-2xl font-extrabold text-slate-900">
           {isLogin ? dictionary.auth.login : dictionary.auth.register}
         </h1>
+
+        <SocialAuth lang={lang} dictionary={dictionary} mode={mode} />
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           {!isLogin && (
