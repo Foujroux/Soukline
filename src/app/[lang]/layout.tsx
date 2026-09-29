@@ -36,7 +36,9 @@ export default async function RootLayout({
 
   return (
     <SetLangDir lang={resolved}>
-      <div className="flex min-h-screen flex-col">
+      {/* pb reserves a lane at the bottom of the document so the floating chat
+          button never permanently covers the end of the page. */}
+      <div className="flex min-h-screen flex-col pb-[calc(5.5rem_+_env(safe-area-inset-bottom))]">
         <Header lang={resolved} dictionary={dictionary} />
         <main className="flex-1">{children}</main>
         <Footer lang={resolved} dictionary={dictionary} />

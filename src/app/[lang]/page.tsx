@@ -54,7 +54,6 @@ export default async function HomePage({
               <p className="mt-4 max-w-2xl text-lg leading-relaxed text-emerald-50/90">
                 {dictionary.hero.subtitle}
               </p>
-              <HeroSearch lang={resolved} dictionary={dictionary} />
               <p className="mt-3 flex items-center gap-2 text-sm font-medium text-emerald-50/80">
                 <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-amber-400" />
                 {dictionary.hero.adsCount}
@@ -158,78 +157,21 @@ function CategoryGrid({
         <a
           key={cat.slug}
           href={`/${lang}/categorie/${cat.slug}`}
-          className="group flex flex-col items-center gap-2 rounded-2xl border border-slate-200 bg-white p-5 text-center shadow-sm transition-all hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md"
+          className="group flex h-full flex-col items-center gap-2 rounded-2xl border border-slate-200 bg-white p-5 text-center shadow-sm transition-all hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-md"
         >
           <span
-            className={`grid h-14 w-14 place-items-center rounded-2xl text-3xl transition-transform group-hover:scale-110 ${getCategoryTone(cat).tile}`}
+            className={`grid h-14 w-14 shrink-0 place-items-center rounded-2xl text-3xl transition-transform group-hover:scale-110 ${getCategoryTone(cat).tile}`}
           >
             <span aria-hidden>{cat.emoji}</span>
           </span>
-          <span className="text-sm font-bold text-slate-800">
+          <span className="text-pretty text-sm font-bold text-slate-800">
             {lang === "fr" ? cat.fr : cat.ar}
           </span>
-          <span className="line-clamp-2 text-xs leading-snug text-slate-500">
+          <span className="mt-auto text-pretty break-words text-xs leading-snug text-slate-500">
             {lang === "fr" ? cat.descriptionFr : cat.descriptionAr}
           </span>
         </a>
       ))}
     </div>
-  );
-}
-
-function HeroSearch({
-  lang,
-  dictionary,
-}: {
-  lang: string;
-  dictionary: any;
-}) {
-  return (
-    <form
-      action={`/${lang}/recherche`}
-      method="GET"
-      className="mt-7 flex max-w-2xl flex-col gap-2 sm:flex-row"
-    >
-      <div className="flex flex-1 items-center overflow-hidden rounded-xl bg-white shadow-2xl shadow-emerald-900/20">
-        <span className="pl-3.5 text-slate-400" aria-hidden>
-          <SearchIcon />
-        </span>
-        <input
-          type="search"
-          name="q"
-          placeholder={dictionary.hero.searchPlaceholder}
-          className="h-13 w-full bg-transparent px-3 py-3.5 text-slate-900 placeholder:text-slate-400 focus:outline-none"
-          aria-label={dictionary.hero.searchPlaceholder}
-        />
-      </div>
-      <select
-        name="w"
-        className="h-13 rounded-xl bg-white px-3 py-3.5 text-slate-600 shadow-2xl shadow-emerald-900/20 focus:outline-none"
-        defaultValue=""
-        aria-label={dictionary.hero.locationPlaceholder}
-      >
-        <option value="">{dictionary.hero.locationPlaceholder}</option>
-        {WILAYAS.map((w) => (
-          <option key={w.code} value={w.code}>
-            {lang === "fr" ? w.fr : w.ar}
-          </option>
-        ))}
-      </select>
-      <button
-        type="submit"
-        className="h-13 rounded-xl bg-amber-500 px-7 py-3.5 text-base font-extrabold text-amber-950 shadow-2xl shadow-amber-900/30 transition-colors hover:bg-amber-400"
-      >
-        {dictionary.hero.searchButton}
-      </button>
-    </form>
-  );
-}
-
-function SearchIcon() {
-  return (
-    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <circle cx="11" cy="11" r="7" />
-      <path strokeLinecap="round" d="m20 20-3.5-3.5" />
-    </svg>
   );
 }

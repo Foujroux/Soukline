@@ -66,7 +66,7 @@ export default function ChatWidget({ lang, dictionary }: Props) {
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="fixed bottom-5 right-5 z-50 grid h-14 w-14 place-items-center rounded-full bg-gradient-to-br from-emerald-600 to-teal-600 text-white shadow-2xl shadow-emerald-600/40 transition-all hover:scale-105 hover:brightness-110"
+        className="fixed bottom-[calc(1rem_+_env(safe-area-inset-bottom))] right-[calc(1rem_+_env(safe-area-inset-right))] z-50 grid h-14 w-14 place-items-center rounded-full bg-gradient-to-br from-emerald-600 to-teal-600 text-white shadow-2xl shadow-emerald-600/40 transition-all hover:scale-105 hover:brightness-110"
         aria-label={open ? dictionary.chat.close : dictionary.chat.open}
       >
         {open ? <CloseIcon /> : <ChatIcon />}
@@ -76,7 +76,7 @@ export default function ChatWidget({ lang, dictionary }: Props) {
       </button>
 
       {open && (
-        <div className="fixed bottom-24 right-5 z-50 flex h-[480px] w-[calc(100vw-2.5rem)] max-w-sm flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
+        <div className="fixed bottom-[calc(4.75rem_+_env(safe-area-inset-bottom))] left-[calc(1rem_+_env(safe-area-inset-left))] right-[calc(1rem_+_env(safe-area-inset-right))] z-50 mx-auto flex h-[480px] max-w-sm flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
           {/* Header */}
           <div className="flex items-center gap-3 bg-gradient-to-r from-emerald-700 to-teal-600 px-5 py-4 text-white">
             <div className="grid h-10 w-10 place-items-center rounded-full bg-white/20 text-xl">
