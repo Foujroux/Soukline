@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { userToSessionUser } from "@/lib/server-auth";
+import { getSessionUser } from "@/lib/server-auth";
 import {
   createRouteClient,
   isSupabaseConfigured,
@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "INVALID_CREDENTIALS" }, { status: 401 });
     }
 
-    const response = NextResponse.json({ user: userToSessionUser(data.user) });
+    const response = NextResponse.json({ user: await getSessionUser(supabase, data.user) });
     return copySessionCookies(cookieJar, response);
   } catch (error) {
     const message = rootErrorMessage(error);

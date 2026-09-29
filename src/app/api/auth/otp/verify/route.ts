@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { toAlgeriaE164 } from "@/lib/phone";
-import { userToSessionUser } from "@/lib/server-auth";
+import { getSessionUser } from "@/lib/server-auth";
 import { syncAdoptedProfile } from "@/lib/sync-profile";
 import { createRouteClient, isSupabaseConfigured } from "@/utils/supabase/server";
 import { validateSupabaseConfig } from "@/utils/supabase/config";
@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
     const user = data.user;
     await syncAdoptedProfile(supabase, user, lang);
 
-    const response = NextResponse.json({ user: userToSessionUser(user) });
+    const response = NextResponse.json({ user: await getSessionUser(supabase, user) });
     for (const cookie of cookieJar.cookies.getAll()) {
       response.cookies.set(cookie);
     }

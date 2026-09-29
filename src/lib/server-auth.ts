@@ -1,4 +1,4 @@
-import type { User } from "@supabase/supabase-js";
+import type { SupabaseClient, User } from "@supabase/supabase-js";
 import type { AccountType, SessionUser } from "@/lib/auth-types";
 import {
   createSupabaseContext,
@@ -13,7 +13,36 @@ function toAccountType(value: unknown): AccountType {
   return (VALID as readonly string[]).includes(v) ? (v as AccountType) : "user";
 }
 
-export function userToSessionUser(user: User): SessionUser {
+/**
+ * Resolves the account role from the user's own `profiles` row, which is
+ * server-assigned.
+ *
+ * This deliberately does NOT read `user.user_metadata.account_type`. GoTrue
+ * lets the account holder rewrite `user_metadata` at any time with
+ * `PUT /auth/v1/user` and their own JWT, so a role sourced from there could be
+ * escalated to `admin` after signup -- which unlocked a 10-ad quota, the
+ * moderation UI and the cross-owner delete branch in `deleteAd`.
+ *
+ * A failed read falls back to "user", the least-privileged role, so an outage
+ * downgrades privileges rather than granting them.
+ */
+async function resolveAccountType(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<AccountType> {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("account_type")
+    .eq("id", userId)
+    .maybeSingle();
+  if (error || !data) return "user";
+  return toAccountType(data.account_type);
+}
+
+export function userToSessionUser(
+  user: User,
+  accountType: AccountType = "user"
+): SessionUser {
   const meta = user.user_metadata ?? {};
   const name =
     String(meta.full_name ?? meta.name ?? "") ||
@@ -24,10 +53,22 @@ export function userToSessionUser(user: User): SessionUser {
     name,
     email: user.email ?? "",
     phone: String(meta.phone ?? user.phone ?? ""),
-    accountType: toAccountType(meta.account_type),
+    accountType,
     lang: meta.lang === "ar" ? "ar" : "fr",
     createdAt: user.created_at,
   };
+}
+
+/**
+ * Builds a SessionUser whose role comes from the server-assigned profile row.
+ * Use this instead of `userToSessionUser` wherever a Supabase client is
+ * available, so the returned role is not client-asserted.
+ */
+export async function getSessionUser(
+  supabase: SupabaseClient,
+  user: User
+): Promise<SessionUser> {
+  return userToSessionUser(user, await resolveAccountType(supabase, user.id));
 }
 
 /**
@@ -46,7 +87,7 @@ export async function getAuthContext(): Promise<AuthContext | null> {
   if (error || !ctx || !ctx.userClaims) return null;
   const { data, error: userError } = await ctx.supabase.auth.getUser();
   if (userError || !data.user) return null;
-  return { ...ctx, user: userToSessionUser(data.user) };
+  return { ...ctx, user: await getSessionUser(ctx.supabase, data.user) };
 }
 
 /**

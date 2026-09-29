@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { userToSessionUser } from "@/lib/server-auth";
+import { getSessionUser } from "@/lib/server-auth";
 import { isAdoptableIdentity, syncAdoptedProfile } from "@/lib/sync-profile";
 import {
   createRouteClient,
@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
 
     await syncAdoptedProfile(supabase, user, lang);
 
-    const response = NextResponse.json({ user: userToSessionUser(user) });
+    const response = NextResponse.json({ user: await getSessionUser(supabase, user) });
     for (const cookie of cookieJar.cookies.getAll()) {
       response.cookies.set(cookie);
     }

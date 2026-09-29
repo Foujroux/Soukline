@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { sanitizeEmail, sanitizeName, sanitizePhone } from "@/lib/sanitize";
-import { VALID_ACCOUNT_TYPES, type AccountType } from "@/lib/auth-types";
-import { userToSessionUser } from "@/lib/server-auth";
+import { SELF_SERVICE_ACCOUNT_TYPES, type AccountType } from "@/lib/auth-types";
+import { getSessionUser } from "@/lib/server-auth";
 import {
   createRouteClient,
   isSupabaseConfigured,
@@ -126,7 +126,7 @@ export async function POST(request: NextRequest) {
   const lang = body.lang === "ar" ? "ar" : "fr";
   const accountTypeRaw = String(body.accountType ?? "user");
   const accountType: AccountType =
-    (VALID_ACCOUNT_TYPES as readonly string[]).includes(accountTypeRaw)
+    (SELF_SERVICE_ACCOUNT_TYPES as readonly string[]).includes(accountTypeRaw)
       ? (accountTypeRaw as AccountType)
       : "user";
 
@@ -229,6 +229,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Persist the profile row so user data survives regardless of metadata.
+    // account_type is deliberately omitted: `handle_new_user` already set it
+    // at signup (clamped to user/merchant) and the client is not allowed to
+    // write it -- see guard_profile_server_columns in supabase/schema.sql.
     try {
       const { error: syncError } = await supabase
         .from("profiles")
@@ -238,7 +241,6 @@ export async function POST(request: NextRequest) {
             email,
             full_name: name,
             phone,
-            account_type: accountType,
             lang,
             created_at: data.user.created_at ?? new Date().toISOString(),
           },
@@ -257,7 +259,7 @@ export async function POST(request: NextRequest) {
 
     return copySessionCookies(
       cookieJar,
-      NextResponse.json({ user: userToSessionUser(data.user) })
+      NextResponse.json({ user: await getSessionUser(supabase, data.user) })
     );
   } catch (error) {
     const message = rootErrorMessage(error);
