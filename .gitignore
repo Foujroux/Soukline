@@ -11,3 +11,6 @@ npm-debug.log*
 !.env.example*.tsbuildinfo
 .vercel
 .env*
+
+# supabase
+supabase/.temp/
