@@ -16,9 +16,7 @@ export default function Footer({
         <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-5">
           <div>
             <a href={`/${lang}`} className="flex items-center gap-2">
-              <span className="grid h-9 w-9 place-items-center rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500 text-lg font-black text-white">
-                س
-              </span>
+              <img src="/logo.jpg" alt="Souk.dz" className="h-9 w-9 rounded-lg object-cover" />
               <span className="text-xl font-extrabold text-white">
                 Souk<span className="text-emerald-400">.dz</span>
               </span>
