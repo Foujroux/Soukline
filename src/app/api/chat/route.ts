@@ -53,21 +53,39 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "messages required" }, { status: 400 });
   }
 
-  const model = process.env.GEMINI_MODEL || "gemini-3.6-flash";
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
-
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ system_instruction: { parts: [{ text: SYSTEM_PROMPT }] }, contents }),
+  const models = (process.env.GEMINI_MODEL || "gemini-3.8-flash,gemini-3.6-flash").split(",");
+  const payload = JSON.stringify({
+    system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+    contents,
+    generationConfig: { maxOutputTokens: 300, temperature: 0.7 },
   });
 
-  const data = await res.json();
+  let data: any = null;
+  let lastError: string | null = null;
+  for (const model of models) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model.trim()}:generateContent?key=${encodeURIComponent(apiKey)}`;
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: payload,
+        signal: AbortSignal.timeout(15000),
+      });
+      const d = await res.json();
+      if (res.ok) {
+        data = d;
+        break;
+      }
+      lastError = d?.error?.message ?? "Gemini API error";
+    } catch {
+      lastError = "timeout";
+    }
+  }
 
-  if (!res.ok) {
+  if (!data) {
     return NextResponse.json(
-      { error: data?.error?.message ?? "Gemini API error" },
-      { status: res.status }
+      { error: lastError && lastError !== "timeout" ? lastError : "Le service est momentanément lent, réessayez dans un instant." },
+      { status: 504 }
     );
   }
 

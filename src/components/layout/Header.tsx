@@ -2,7 +2,6 @@ import Logo from "@/components/Logo";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { SearchBar, SearchBarMobile } from "@/components/SearchBar";
 import PostAdButton from "@/components/PostAdButton";
-import UserMenu from "@/components/UserMenu";
 import AuthLink from "@/components/AuthLink";
 import { CATEGORIES } from "@/data/categories";
 import type { Dictionary } from "@/lib/dictionary";
@@ -35,20 +34,12 @@ export default function Header({
                 registerLabel={dictionary.auth.createAccount}
               />
             </div>
-            <UserMenu
-              lang={lang}
-              loginLabel={dictionary.nav.login}
-              accountLabel={dictionary.nav.myAccount}
-              logoutLabel={dictionary.nav.logout}
-              myAdsLabel={dictionary.dashboard.myAds}
-              messagesLabel={dictionary.dashboard.messages}
-            />
           </div>
         </div>
 
         <div className="hidden pb-2 lg:block">
           <div className="mx-auto max-w-xl">
-            <AuthLink lang={lang} loginLabel={dictionary.nav.login} accountLabel={dictionary.nav.myAccount} />
+            <AuthLink lang={lang} loginLabel={dictionary.nav.login} accountLabel={dictionary.nav.myAccount} messagesLabel={dictionary.dashboard.messages} myAdsLabel={dictionary.dashboard.myAds} settingsLabel={dictionary.dashboard.settings} logoutLabel={dictionary.nav.logout} />
           </div>
         </div>
 
@@ -63,7 +54,7 @@ export default function Header({
           </div>
           <SearchBarMobile lang={lang} dictionary={dictionary} />
           <div className="mt-2 mb-2">
-            <AuthLink lang={lang} loginLabel={dictionary.nav.login} accountLabel={dictionary.nav.myAccount} />
+            <AuthLink lang={lang} loginLabel={dictionary.nav.login} accountLabel={dictionary.nav.myAccount} messagesLabel={dictionary.dashboard.messages} myAdsLabel={dictionary.dashboard.myAds} settingsLabel={dictionary.dashboard.settings} logoutLabel={dictionary.nav.logout} />
           </div>
         </div>
 
