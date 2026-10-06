@@ -51,10 +51,10 @@ export default function Footer({
               {dictionary.footer.help}
             </h3>
             <ul className="space-y-2">
-              {dictionary.footer.helpLinks.map((link) => (
+              {dictionary.footer.helpLinks.map((link, i) => (
                 <li key={link}>
                   <a
-                    href={`/${lang}`}
+                    href={i === 0 ? `/${lang}/comment-ca-marche` : i === 3 ? `/${lang}/faq` : `/${lang}`}
                     className="text-sm text-slate-400 transition-colors hover:text-emerald-400"
                   >
                     {link}
