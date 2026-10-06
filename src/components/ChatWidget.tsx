@@ -76,7 +76,7 @@ export default function ChatWidget({ lang, dictionary }: Props) {
       </button>
 
       {open && (
-        <div className="fixed bottom-[calc(4.75rem_+_env(safe-area-inset-bottom))] left-[calc(1rem_+_env(safe-area-inset-left))] right-[calc(1rem_+_env(safe-area-inset-right))] z-50 mx-auto flex h-[480px] max-w-sm flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
+        <div className="fixed bottom-[calc(4.75rem_+_env(safe-area-inset-bottom))] left-1/2 z-50 flex h-[480px] w-[calc(100vw-2rem)] max-w-sm -translate-x-1/2 flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
           {/* Header */}
           <div className="flex items-center gap-3 bg-gradient-to-r from-emerald-700 to-teal-600 px-5 py-4 text-white">
             <div className="grid h-10 w-10 place-items-center rounded-full bg-white/20 text-xl">

@@ -8,6 +8,17 @@ interface ChatMessage {
   content: string;
 }
 
+const SYSTEM_PROMPT = `Tu es l'assistant officiel de Souk.dz, une plateforme algérienne de petites annonces. Réponds toujours dans la langue de l'utilisateur (français ou arabe), de façon concise et utile.
+
+À propos de Souk.dz :
+- Place de marché entre particuliers et professionnels dans les 58 wilayas d'Algérie.
+- Les vendeurs publient des annonces (photo, description, prix) ; les acheteurs les consultent et contactent directement le vendeur pour convenir de l'état des biens, du prix ou d'un échange.
+- Le paiement se fait uniquement à la livraison.
+- Seuls les articles légaux sont autorisés ; les articles interdits sont rejetés et les autorités peuvent être contactées.
+- Les administrateurs ne sont pas responsables des activités illégales des utilisateurs.
+- Pour publier : créer un compte avec nom, téléphone et wilaya, compléter le profil, puis « Déposer une annonce ».
+- Contacte-nous en cas de problème avec une annonce ou un vendeur. Suggestion de rencontre dans un lieu public sûr.`;
+
 export async function POST(req: Request) {
   const apiKey = process.env.GEMINI_API_KEY || process.env.gemini_api_key;
   if (!apiKey) {
@@ -48,7 +59,7 @@ export async function POST(req: Request) {
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ contents }),
+    body: JSON.stringify({ system_instruction: { parts: [{ text: SYSTEM_PROMPT }] }, contents }),
   });
 
   const data = await res.json();
