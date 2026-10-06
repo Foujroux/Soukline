@@ -13,7 +13,7 @@ export default function Footer({
   return (
     <footer className="mt-16 border-t border-slate-200 bg-slate-900 text-slate-300">
       <div className="mx-auto max-w-7xl px-4 py-12">
-        <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-5">
           <div>
             <a href={`/${lang}`} className="flex items-center gap-2">
               <span className="grid h-9 w-9 place-items-center rounded-lg bg-gradient-to-br from-emerald-500 to-teal-500 text-lg font-black text-white">
@@ -55,6 +55,24 @@ export default function Footer({
                 <li key={link}>
                   <a
                     href={`/${lang}`}
+                    className="text-sm text-slate-400 transition-colors hover:text-emerald-400"
+                  >
+                    {link}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div>
+            <h3 className="mb-4 text-sm font-bold uppercase tracking-wider text-white">
+              {dictionary.footer.legal}
+            </h3>
+            <ul className="space-y-2">
+              {dictionary.footer.legalLinks.map((link, i) => (
+                <li key={link}>
+                  <a
+                    href={`/${lang}/${["conditions", "confidentialite", "dpa"][i]}`}
                     className="text-sm text-slate-400 transition-colors hover:text-emerald-400"
                   >
                     {link}
