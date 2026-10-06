@@ -92,6 +92,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "INVALID_CREDENTIALS" }, { status: 401 });
     }
 
+    const { data: profileRow } = await supabase
+      .from("profiles")
+      .select("banned")
+      .eq("id", data.user.id)
+      .maybeSingle();
+    if (profileRow?.banned) {
+      await supabase.auth.signOut();
+      return NextResponse.json({ error: "BANNED" }, { status: 403 });
+    }
+
     const response = NextResponse.json({ user: await getSessionUser(supabase, data.user) });
     return copySessionCookies(cookieJar, response);
   } catch (error) {

@@ -20,6 +20,7 @@ create table if not exists public.profiles (
   phone text not null default '',
   account_type text not null default 'user' check (account_type in ('user', 'merchant', 'admin')),
   lang text not null default 'fr' check (lang in ('fr', 'ar')),
+  banned boolean not null default false,
   created_at timestamptz not null default now()
 );
 
@@ -133,9 +134,13 @@ begin
   if role_name is null or role_name in ('anon', 'authenticated') then
     if tg_op = 'INSERT' then
       new.account_type := 'user';
+      new.banned := false;
     else
       new.account_type := old.account_type;
       new.email := old.email;
+      if old.id = auth.uid() then
+        new.banned := old.banned;
+      end if;
     end if;
   end if;
   return new;
@@ -206,3 +211,39 @@ drop policy if exists "listings_owner_delete" on public.listings;
 create policy "listings_owner_delete"
   on public.listings for delete
   using (auth.uid() = user_id);
+
+-- Admin moderation: a user whose profile row says admin may read users,
+-- update/ban profiles, and delete/update any listing.
+create or replace function public.is_admin()
+returns boolean
+language sql
+security definer set search_path = public
+stable
+as $$
+  select exists(
+    select 1 from public.profiles
+    where id = auth.uid() and account_type = 'admin'
+  );
+$$;
+
+drop policy if exists "profiles_admin_select" on public.profiles;
+create policy "profiles_admin_select"
+  on public.profiles for select
+  using (public.is_admin());
+
+drop policy if exists "profiles_admin_update" on public.profiles;
+create policy "profiles_admin_update"
+  on public.profiles for update
+  using (public.is_admin())
+  with check (public.is_admin());
+
+drop policy if exists "listings_admin_delete" on public.listings;
+create policy "listings_admin_delete"
+  on public.listings for delete
+  using (public.is_admin());
+
+drop policy if exists "listings_admin_update" on public.listings;
+create policy "listings_admin_update"
+  on public.listings for update
+  using (public.is_admin())
+  with check (public.is_admin());

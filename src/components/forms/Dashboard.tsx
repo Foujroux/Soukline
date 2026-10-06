@@ -13,6 +13,7 @@ import {
 import { accountTypeLabel, clearProfile, getProfile } from "@/lib/client-auth";
 import type { SessionUser } from "@/lib/auth-types";
 import type { Dictionary } from "@/lib/dictionary";
+import AdminPanel from "@/components/AdminPanel";
 
 interface Props {
   lang: "fr" | "ar";
@@ -234,22 +235,7 @@ export default function Dashboard({ lang, dictionary }: Props) {
         )}
         {tab === "share" && <ShareApp lang={lang} dictionary={dictionary} />}
         {tab === "moderation" && profile.accountType === "admin" && (
-          <ModerationAds
-            lang={lang}
-            myAds={myAds}
-            dictionary={dictionary}
-            onDelete={async (id) => {
-              const ad = myAds.find((a) => a.id === id);
-              if (!ad) return;
-              try {
-                await deleteMyAd(ad.slug);
-                setMyAds((prev) => prev.filter((a) => a.id !== id));
-              } catch {
-                // keep the ad so the user can retry
-              }
-              setVote((v) => v + 1);
-            }}
-          />
+          <AdminPanel lang={lang} />
         )}
         {tab === "settings" && (
           <Settings lang={lang} dictionary={dictionary} profile={profile} />

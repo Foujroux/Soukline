@@ -39,6 +39,8 @@ function errorMessage(code: string, lang: "fr" | "ar"): string {
         return "عنوان البريد الإلكتروني غير مسموح بالتسجيل به.";
       case "AUTH_NOT_CONFIGURED":
         return "التسجيل غير متاح حاليًا.";
+      case "BANNED":
+        return "تم تعليق هذا الحساب لمخالفة القواعد.";
       case "NETWORK":
         return "تعذّر الاتصال بالخادم.";
       default: {
@@ -76,6 +78,8 @@ function errorMessage(code: string, lang: "fr" | "ar"): string {
       return "L'inscription est momentanément indisponible.";
     case "NETWORK":
       return "Impossible de contacter le serveur.";
+    case "BANNED":
+      return "Ce compte a été suspendu pour violation des règles.";
     default: {
       // Diagnostic: let raw system messages (e.g. "fetch failed") through so
       // the real error is visible in the modal. Real normalized codes (all
