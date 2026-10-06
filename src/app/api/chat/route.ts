@@ -9,7 +9,7 @@ interface ChatMessage {
 }
 
 export async function POST(req: Request) {
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY || process.env.gemini_api_key;
   if (!apiKey) {
     return NextResponse.json(
       { error: "GEMINI_API_KEY is not configured" },
