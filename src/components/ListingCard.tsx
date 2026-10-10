@@ -4,6 +4,7 @@ import { formatPrice } from "@/data/listings";
 import { getCategory, getCategoryTone } from "@/data/categories";
 import { getWilaya } from "@/data/wilayas";
 import ShareButton from "@/components/ShareButton";
+import { interpolate } from "@/lib/interpolate";
 import type { Dictionary } from "@/lib/dictionary";
 
 function PlaceholderImage({ cat, className }: { cat: string; className?: string }) {
@@ -17,18 +18,18 @@ function PlaceholderImage({ cat, className }: { cat: string; className?: string 
   );
 }
 
-function relativeDate(date: string, lang: "fr" | "ar"): string {
+function relativeDate(date: string, lang: "fr" | "ar", dictionary: Dictionary): string {
   const diff = Math.floor((Date.now() - new Date(date).getTime()) / 86400000);
-  if (diff <= 0) return lang === "fr" ? "Aujourd'hui" : "اليوم";
-  if (diff === 1) return lang === "fr" ? "Hier" : "أمس";
-  if (diff < 30) return lang === "fr" ? `il y a ${diff} j` : `قبل ${diff} يوم`;
+  if (diff <= 0) return dictionary.common.today;
+  if (diff === 1) return dictionary.common.yesterday;
+  if (diff < 30) return interpolate(dictionary.common.daysAgo, { days: diff });
   const m = Math.floor(diff / 30);
-  return lang === "fr" ? `il y a ${m} mois` : `قبل ${m} شهر`;
+  return interpolate(dictionary.common.monthsAgo, { months: m });
 }
 
-function formatViews(views: number, lang: "fr" | "ar"): string {
+function formatViews(views: number, lang: "fr" | "ar", dictionary: Dictionary): string {
   const n = new Intl.NumberFormat(lang === "ar" ? "ar-DZ" : "fr-DZ").format(views);
-  return lang === "ar" ? `${n} مشاهدة` : `${n} vues`;
+  return `${n} ${dictionary.listing.views}`;
 }
 
 export function ListingCard({
@@ -68,7 +69,7 @@ export function ListingCard({
         )}
         {listing.featured && (
           <span className="absolute top-2 ltr:left-2 rtl:right-2 rounded-full bg-amber-400/95 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-amber-950 shadow">
-            ★ {lang === "fr" ? "À la une" : "مميز"}
+            ★ {dictionary.listing.featured}
           </span>
         )}
         {(listing as { accountType?: string }).accountType === "merchant" && (
@@ -91,7 +92,7 @@ export function ListingCard({
         </h3>
 
         <div className="mt-1 text-xs text-slate-500">
-          {relativeDate(listing.createdAt, lang)}
+          {relativeDate(listing.createdAt, lang, dictionary)}
         </div>
 
         <div className="mt-auto flex items-end justify-between border-t border-slate-100 pt-2.5">
@@ -101,11 +102,11 @@ export function ListingCard({
             </span>
             {!listing.negotiable && listing.price > 0 && (
               <span className="mt-0.5 block text-[10px] text-slate-400">
-                {lang === "fr" ? "prix ferme" : "سعر ثابت"}
+                {dictionary.listing.fixed}
               </span>
             )}
           </div>
-          <span className="text-[11px] text-slate-400">{formatViews(listing.views, lang)}</span>
+          <span className="text-[11px] text-slate-400">{formatViews(listing.views, lang, dictionary)}</span>
         </div>
       </div>
 

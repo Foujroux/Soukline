@@ -58,7 +58,7 @@ export default function HomeFilters({
           aria-label={dictionary.filters.wilaya}
         >
           <option value="">
-            {lang === "fr" ? "Toute l'Algérie" : "كل الجزائر"}
+            {dictionary.hero.locationPlaceholder}
           </option>
           {WILAYAS.map((w) => (
             <option key={w.code} value={w.code}>

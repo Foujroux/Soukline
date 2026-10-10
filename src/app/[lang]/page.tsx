@@ -123,7 +123,7 @@ export default async function HomePage({
       <section className="border-t border-slate-200 bg-white py-10">
         <div className="mx-auto max-w-7xl px-4">
           <h2 className="mb-4 text-center text-xl font-extrabold text-slate-900">
-            {resolved === "fr" ? "Partout en Algérie" : "في جميع أنحاء الجزائر"}
+            {dictionary.hero.everywhere}
           </h2>
           <div className="mx-auto flex max-w-4xl flex-wrap justify-center gap-2">
             {WILAYAS.slice(0, 16).map((w) => (

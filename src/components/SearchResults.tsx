@@ -5,6 +5,7 @@ import { fetchPublicAds } from "@/lib/userAds";
 import { ListingGrid } from "@/components/ListingCard";
 import ShareButton from "@/components/ShareButton";
 import type { Listing, SortOrder } from "@/data/listings";
+import { interpolate } from "@/lib/interpolate";
 import type { Dictionary } from "@/lib/dictionary";
 
 interface Props {
@@ -78,9 +79,12 @@ export default function SearchResults({
     <>
       <div className="mt-1 flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-slate-500">
-          {allListings.length === 1
-            ? `${allListings.length} ${lang === "fr" ? "annonce trouvée" : "إعلان تم العثور عليها"}`
-            : `${allListings.length} ${lang === "fr" ? "annonces trouvées" : "إعلان تم العثور عليها"}`}
+          {interpolate(
+            allListings.length === 1
+              ? dictionary.filters.resultsOne
+              : dictionary.filters.results,
+            { count: allListings.length }
+          )}
         </p>
         <ShareButton
           lang={lang}

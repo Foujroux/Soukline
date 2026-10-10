@@ -92,7 +92,7 @@ export default function ShareButton({
     };
   }, [open]);
 
-  const shareText = title ?? (lang === "fr" ? "Découvrez cette annonce sur Souk.dz" : "اكتشف هذا الإعلان على سوقدز");
+  const shareText = title ?? dictionary.share.discoverAd;
 
   const handleShare = async () => {
     const url = resolveUrl(href);
