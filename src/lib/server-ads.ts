@@ -6,6 +6,7 @@ import {
 } from "@/lib/sanitize";
 import type { AccountType } from "@/lib/auth-types";
 import { maxAdsFor, maxImagesFor } from "@/lib/ads-limits";
+import { translateAd } from "@/lib/translate";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { UserAd } from "@/lib/userAds";
 import { createAnonClient } from "@/utils/supabase/server";
@@ -76,19 +77,23 @@ function rowToAd(row: ListingRow): StoredAd {
     ownerId: row.user_id,
     slug: row.slug,
     categorySlug: row.category_slug ?? "services",
-    titleFr: row.title_fr ?? "",
-    titleAr: row.title_ar ?? "",
-    descriptionFr: row.description_fr ?? "",
-    descriptionAr: row.description_ar ?? "",
+    // New ads get both languages filled by translateAd. Rows written before
+    // that still have one side empty, and the UI picks a column purely by the
+    // viewer's language, so fall back here or the Arabic view renders a blank
+    // title for a listing that plainly has one.
+    titleFr: row.title_fr || row.title_ar || "",
+    titleAr: row.title_ar || row.title_fr || "",
+    descriptionFr: row.description_fr || row.description_ar || "",
+    descriptionAr: row.description_ar || row.description_fr || "",
     price: Number(row.price ?? 0),
     currency: "DA",
     wilayaCode: Number(row.wilaya_code ?? 0),
-    communeFr: row.commune_fr ?? "",
-    communeAr: row.commune_ar ?? "",
-    conditionFr: row.condition_fr ?? "",
-    conditionAr: row.condition_ar ?? "",
-    sellerFr: row.seller_fr ?? "",
-    sellerAr: row.seller_ar ?? "",
+    communeFr: row.commune_fr || row.commune_ar || "",
+    communeAr: row.commune_ar || row.commune_fr || "",
+    conditionFr: row.condition_fr || row.condition_ar || "",
+    conditionAr: row.condition_ar || row.condition_fr || "",
+    sellerFr: row.seller_fr || row.seller_ar || "",
+    sellerAr: row.seller_ar || row.seller_fr || "",
     phone: row.phone ?? "",
     email: row.email ?? "",
     createdAt: row.created_at ?? new Date().toISOString(),
@@ -232,6 +237,11 @@ export async function addAd(
     created_at: new Date().toISOString(),
   };
 
+  // The post form is written in one language, so the other column usually
+  // arrives empty and Arabic visitors would see a blank title. Fill it before
+  // the insert. This degrades to copying the source text, never to failing.
+  const translated = await translateAd(base);
+
   const supabase = client;
   const baseSlug = toSlug(rawTitle) || "annonce";
 
@@ -239,7 +249,7 @@ export async function addAd(
     const slug = attempt === 1 ? baseSlug : `${baseSlug.slice(0, 54)}-${attempt}`;
     const { data, error } = await supabase
       .from(ADS_TABLE)
-      .insert({ ...base, slug })
+      .insert({ ...translated, slug })
       .select("*")
       .maybeSingle();
 
