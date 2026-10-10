@@ -53,6 +53,10 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "messages required" }, { status: 400 });
   }
 
+  // gemini-3.8-flash measured 0/4 timeouts from a phone network while
+  // gemini-3.6-flash answered in ~2s, so a 15s budget per model meant a chat
+  // could stall for most of half a minute before succeeding on the second one.
+  // GEMINI_MODEL overrides the order for a network where that differs.
   const models = (process.env.GEMINI_MODEL || "gemini-3.8-flash,gemini-3.6-flash").split(",");
   const payload = JSON.stringify({
     system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
@@ -63,23 +67,32 @@ export async function POST(req: Request) {
   let data: any = null;
   let lastError: string | null = null;
   for (const model of models) {
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model.trim()}:generateContent?key=${encodeURIComponent(apiKey)}`;
-    try {
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: payload,
-        signal: AbortSignal.timeout(15000),
-      });
-      const d = await res.json();
-      if (res.ok) {
-        data = d;
+    // 503 is transient "high demand" and clears on its own; measured at about
+    // half of all calls on the free tier, so one attempt lost half of chats.
+    // 429 is a quota limit and will not clear in a few hundred milliseconds.
+    for (let attempt = 0; attempt < (model.includes("3.6") ? 3 : 1); attempt++) {
+      if (attempt > 0) await new Promise((r) => setTimeout(r, 400 * attempt));
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model.trim()}:generateContent?key=${encodeURIComponent(apiKey)}`;
+      try {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: payload,
+          signal: AbortSignal.timeout(model.includes("3.8") ? 8000 : 15000),
+        });
+        const d = await res.json();
+        if (res.ok) {
+          data = d;
+          break;
+        }
+        lastError = d?.error?.message ?? "Gemini API error";
+        if (res.status !== 503) break;
+      } catch {
+        lastError = "timeout";
         break;
       }
-      lastError = d?.error?.message ?? "Gemini API error";
-    } catch {
-      lastError = "timeout";
     }
+    if (data) break;
   }
 
   if (!data) {

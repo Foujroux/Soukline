@@ -6,7 +6,13 @@ import {
 } from "@/lib/sanitize";
 import type { AccountType } from "@/lib/auth-types";
 import { maxAdsFor, maxImagesFor } from "@/lib/ads-limits";
-import { translateAd } from "@/lib/translate";
+import { after } from "next/server";
+import {
+  needsTranslation,
+  translateAd,
+  withoutTranslation,
+  type TranslatableAd,
+} from "@/lib/translate";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { UserAd } from "@/lib/userAds";
 import { createAnonClient } from "@/utils/supabase/server";
@@ -179,6 +185,67 @@ function toSlug(title: string): string {
     .slice(0, 60);
 }
 
+/**
+ * Fills in a listing's missing language after the response has been sent.
+ *
+ * This used to happen inline, before the insert, which meant posting an ad
+ * waited on Gemini: measured from a phone, that was a 0.25s failure half the
+ * time and a 17s success otherwise, because the free tier returns 503 "high
+ * demand" for roughly every other call. Paying that before the seller sees
+ * their own listing was the wrong trade.
+ *
+ * Deferring it means the post returns as soon as the row is written. If this
+ * never runs, or runs and fails, the listing is still readable in both
+ * languages because stored already copied the source text into both columns —
+ * so the worst case is an untranslated listing, never a blank one.
+ */
+function scheduleTranslation(
+  client: SupabaseClient,
+  row: ListingRow,
+  original: TranslatableAd
+): void {
+  if (!needsTranslation(original)) return;
+
+  const target: "fr" | "ar" = original.title_ar ? "fr" : "ar";
+  const source: "fr" | "ar" = target === "ar" ? "fr" : "ar";
+
+  // after() throws when there is no request scope, so registering it must not
+  // be able to fail an insert that has already succeeded. Today addAd is only
+  // reached from a route handler, but a build or a script calling it directly
+  // would otherwise turn a successful post into an exception.
+  try {
+    after(async () => {
+      try {
+        const translated = await translateAd(original);
+
+        const patch: Record<string, string> = {};
+        for (const field of ["title", "description", "commune", "condition", "seller"] as const) {
+          const key = `${field}_${target}` as keyof TranslatableAd;
+          const value = String(translated[key] ?? "").trim();
+          const sourceText = String(original[`${field}_${source}` as keyof TranslatableAd] ?? "").trim();
+          // Identical to the source means translateAd fell back to copying it
+          // across, i.e. the model produced nothing worth writing.
+          if (value && value !== sourceText) patch[key] = value;
+        }
+        if (Object.keys(patch).length === 0) return;
+
+        const { error } = await client
+          .from(ADS_TABLE)
+          .update(patch)
+          .eq("id", row.id);
+        if (error) console.warn("[ads] translation update failed:", error.message);
+      } catch (error) {
+        console.warn("[ads] translation skipped:", (error as Error)?.message);
+      }
+    });
+  } catch (error) {
+    console.warn(
+      "[ads] translation not scheduled, no request scope:",
+      (error as Error)?.message
+    );
+  }
+}
+
 export async function addAd(
   client: SupabaseClient,
   input: {
@@ -238,9 +305,11 @@ export async function addAd(
   };
 
   // The post form is written in one language, so the other column usually
-  // arrives empty and Arabic visitors would see a blank title. Fill it before
-  // the insert. This degrades to copying the source text, never to failing.
-  const translated = await translateAd(base);
+  // arrives empty. Store the source text in both right away: the row is
+  // immediately readable in either language, and the ad is never blocked on
+  // an external translation call. toPublicAd() falls back across languages, so
+  // this is enough for correctness on its own.
+  const stored = withoutTranslation(base);
 
   const supabase = client;
   const baseSlug = toSlug(rawTitle) || "annonce";
@@ -249,11 +318,18 @@ export async function addAd(
     const slug = attempt === 1 ? baseSlug : `${baseSlug.slice(0, 54)}-${attempt}`;
     const { data, error } = await supabase
       .from(ADS_TABLE)
-      .insert({ ...translated, slug })
+      .insert({ ...stored, slug })
       .select("*")
       .maybeSingle();
 
-    if (!error && data) return toPublicAd(rowToAd(data as ListingRow));
+    if (!error && data) {
+      const ad = toPublicAd(rowToAd(data as ListingRow));
+      // Decided from `base`, not `stored`: the copy-across in withoutTranslation
+      // fills both columns, so testing `stored` would always report "nothing to
+      // translate" and the background step would never run.
+      scheduleTranslation(client, data as ListingRow, base);
+      return ad;
+    }
 
     const isDuplicate = Boolean(
       error && /duplicate key|already exists/i.test(error.message)

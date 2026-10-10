@@ -78,8 +78,17 @@ function plan(ad: TranslatableAd): Direction | null {
   return null;
 }
 
+/**
+ * True when one language is present and the other is not, i.e. there is
+ * something for translateAd to do. Lets a caller skip the work entirely
+ * instead of paying for a request that would be a no-op.
+ */
+export function needsTranslation(ad: TranslatableAd): boolean {
+  return plan(ad) !== null;
+}
+
 /** Copies whichever side exists into the empty one, untranslated. */
-function withoutTranslation(ad: TranslatableAd): TranslatableAd {
+export function withoutTranslation(ad: TranslatableAd): TranslatableAd {
   return {
     ...ad,
     title_ar: ad.title_ar || ad.title_fr,
