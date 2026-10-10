@@ -4,6 +4,7 @@ import { formatPrice } from "@/data/listings";
 import { getCategory, getCategoryTone } from "@/data/categories";
 import { getWilaya } from "@/data/wilayas";
 import ShareButton from "@/components/ShareButton";
+import type { Dictionary } from "@/lib/dictionary";
 
 function PlaceholderImage({ cat, className }: { cat: string; className?: string }) {
   return (
@@ -37,7 +38,7 @@ export function ListingCard({
 }: {
   listing: Listing;
   lang: "fr" | "ar";
-  dictionary: any;
+  dictionary: Dictionary;
 }) {
   const category = getCategory(listing.categorySlug);
   const wilaya = getWilaya(listing.wilayaCode);
@@ -115,7 +116,7 @@ export function ListingCard({
           href={`/${lang}/annonce/${listing.slug}`}
           title={title}
           variant="icon"
-          label={dictionary?.share?.shareListing}
+          label={dictionary.share.shareListing}
         />
       </div>
     </article>
@@ -129,17 +130,19 @@ export function ListingGrid({
 }: {
   listings: Listing[];
   lang: "fr" | "ar";
-  dictionary: any;
+  dictionary: Dictionary;
 }) {
   if (listings.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center">
         <div className="text-4xl">🔍</div>
+        {/* Read straight from the dictionary with no fallback: a `?.` chain here
+            would hide a renamed key behind French text for Arabic visitors. */}
         <p className="mt-3 font-semibold text-slate-700">
-          {dictionary?.ad?.noResults ?? "Aucune annonce trouvée."}
+          {dictionary.ad.noResults}
         </p>
         <p className="mt-1 text-sm text-slate-500">
-          {dictionary?.ad?.noResultsHint ?? "Essayez d'élargir votre recherche."}
+          {dictionary.ad.noResultsHint}
         </p>
       </div>
     );

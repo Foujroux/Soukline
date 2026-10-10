@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Analytics } from "@vercel/analytics/next";
+import { dictionaries } from "@/lib/dictionary";
 import "./globals.css";
 
 export const viewport: Viewport = {
@@ -10,7 +11,10 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   title: "Souk.dz",
-  description: "Petites annonces en Algérie",
+  // Only a fallback for routes outside /[lang] (the root redirect and the
+  // global not-found). Every real page overrides this from
+  // dictionary.meta.description, which carries the Arabic variant too.
+  description: dictionaries.fr.meta.description,
   metadataBase: new URL("https://souk.dz"),
 };
 

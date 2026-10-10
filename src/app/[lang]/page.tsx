@@ -8,9 +8,9 @@ import HomeLatest from "@/components/HomeLatest";
 import HomeFilters from "@/components/HomeFilters";
 import { HomeFiltersProvider } from "@/components/HomeFiltersProvider";
 
-export const metadata = {
-  title: "Souk.dz",
-};
+// No page-level `metadata` export here on purpose: it would override the
+// layout's dictionary.meta.title with one fixed string, leaving Arabic
+// visitors with the French title in the browser tab and in search results.
 
 export async function generateStaticParams() {
   return [{ lang: "fr" }, { lang: "ar" }];
