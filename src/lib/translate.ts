@@ -15,12 +15,31 @@ import "server-only";
  * did not arrive.
  */
 
+/**
+ * Translation runs inline in the ad insert path, so a model that never answers
+ * has to be cheap to skip. gemini-3.8-flash was measured timing out on 4/4
+ * calls from an Android/Termux network while gemini-3.6-flash answered in
+ * ~2.2s, so the per-model budget is deliberately short and GEMINI_MODEL can
+ * reorder the list without a code change.
+ */
 const MODELS = (process.env.GEMINI_MODEL || "gemini-3.8-flash,gemini-3.6-flash")
   .split(",")
   .map((m) => m.trim())
   .filter(Boolean);
 
-const TIMEOUT_MS = 12_000;
+const TIMEOUT_MS = 8_000;
+
+/**
+ * Gemini answers 503 "high demand" on roughly half of calls from an
+ * unsaturated region, which is transient by definition. Three attempts turn
+ * that into a ~12% miss rate instead of ~50%.
+ */
+const MAX_ATTEMPTS = 3;
+const BACKOFF_MS = 400;
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 const SYSTEM_PROMPT = `You translate listings for Souk.dz, an Algerian classifieds site.
 
@@ -106,6 +125,36 @@ function parseTranslation(text: string): Record<string, string> | null {
 }
 
 /**
+ * Writes a model reply into the target language columns. Returns null when the
+ * reply carried no usable field, so the caller can try the next model instead
+ * of storing a half-blank listing.
+ */
+function adopt(
+  data: { candidates?: { content?: { parts?: { text?: string }[] } }[] },
+  ad: TranslatableAd,
+  target: "fr" | "ar"
+): TranslatableAd | null {
+  const raw = data.candidates?.[0]?.content?.parts
+    ?.map((p) => p.text ?? "")
+    .join("");
+  const parsed = raw ? parseTranslation(raw) : null;
+  if (!parsed) return null;
+
+  const next: TranslatableAd = { ...ad };
+  let wrote = false;
+  for (const field of ["title", "description", "commune", "condition", "seller"] as const) {
+    const value = (parsed[field] ?? "").trim();
+    if (value) {
+      next[`${field}_${target}`] = value;
+      wrote = true;
+    }
+  }
+  if (!wrote) return null;
+  // Never let a model reply leave the target column empty again.
+  return withoutTranslation(next);
+}
+
+/**
  * Fills the empty language of a listing. Never throws and never returns a
  * half-empty pair: on any failure the caller gets the source text copied
  * across.
@@ -131,35 +180,37 @@ export async function translateAd(ad: TranslatableAd): Promise<TranslatableAd> {
   });
 
   for (const model of MODELS) {
-    try {
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body,
-          signal: AbortSignal.timeout(TIMEOUT_MS),
-        }
-      );
-      if (!res.ok) continue;
-      const data = (await res.json()) as {
-        candidates?: { content?: { parts?: { text?: string }[] } }[];
-      };
-      const raw = data.candidates?.[0]?.content?.parts
-        ?.map((p) => p.text ?? "")
-        .join("");
-      const parsed = raw ? parseTranslation(raw) : null;
-      if (!parsed) continue;
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      if (attempt > 0) await sleep(BACKOFF_MS * attempt);
+      try {
+        const res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body,
+            signal: AbortSignal.timeout(TIMEOUT_MS),
+          }
+        );
 
-      const next: TranslatableAd = { ...ad };
-      for (const field of ["title", "description", "commune", "condition", "seller"] as const) {
-        const value = (parsed[field] ?? "").trim();
-        if (value) next[`${field}_${target}`] = value;
+        // 503 is Gemini's transient "high demand" signal and clears on its own.
+        // Measured at roughly half of all calls on gemini-3.6-flash, so a
+        // single attempt loses about half of all translations.
+        if (res.status === 503) continue;
+        if (!res.ok) break;
+
+        const data = (await res.json()) as {
+          candidates?: { content?: { parts?: { text?: string }[] } }[];
+        };
+        const adopted = adopt(data, ad, target);
+        if (adopted) return adopted;
+        // Reply had nothing usable; try the next model.
+        break;
+      } catch {
+        // Timeout or network error. Trying the same model again is unlikely to
+        // help, so move on.
+        break;
       }
-      // Never let a model reply leave the Arabic column empty again.
-      return withoutTranslation(next);
-    } catch {
-      // Try the next model, then the untranslated fallback.
     }
   }
 
