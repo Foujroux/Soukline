@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import AdminMail from "@/components/AdminMail";
 
 interface AdminAd {
   id: string;
@@ -146,6 +147,10 @@ export default function AdminPanel({ lang }: { lang: "fr" | "ar" }) {
             </div>
           ))}
         </div>
+      </section>
+
+      <section>
+        <AdminMail lang={lang} />
       </section>
     </div>
   );
