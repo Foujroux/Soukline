@@ -30,6 +30,26 @@ const MODELS = (process.env.GEMINI_MODEL || "gemini-3.8-flash,gemini-3.6-flash")
 const TIMEOUT_MS = 8_000;
 
 /**
+ * Output budget for one translation reply.
+ *
+ * 1024 was a miss, and specifically on descriptions: a measured call on a
+ * 646-character French description returned finishReason=MAX_TOKENS with
+ * only 40 candidate tokens, because gemini-3.x spends its thinking budget
+ * inside maxOutputTokens. The reply was cut off mid-sentence, JSON.parse
+ * failed, and the listing silently stayed French. Short titles sometimes fit
+ * inside 1024 and long descriptions never did, which is exactly the
+ * "titles translate, descriptions don't" symptom.
+ */
+const MAX_OUTPUT_TOKENS = Number(process.env.GEMINI_MAX_OUTPUT_TOKENS || 4096);
+
+/**
+ * Translation is mechanical, not a reasoning task, so thinking is switched off
+ * and the whole budget goes to the answer. Kept as an env override because a
+ * model that rejects thinkingBudget should not take the feature down.
+ */
+const THINKING_BUDGET = Number(process.env.GEMINI_THINKING_BUDGET || 0);
+
+/**
  * Gemini answers 503 "high demand" on roughly half of calls from an
  * unsaturated region, which is transient by definition. Three attempts turn
  * that into a ~12% miss rate instead of ~50%.
@@ -117,7 +137,66 @@ function jsonPayload(direction: Direction, ad: TranslatableAd): string {
   return JSON.stringify({ target_language: target, fields });
 }
 
-function parseTranslation(text: string): Record<string, string> | null {
+/**
+ * Pulls complete `"key": "value"` pairs out of a reply that was cut off before
+ * its closing brace.
+ *
+ * When maxOutputTokens truncates a reply, JSON.parse throws and the whole
+ * translation is lost -- but the fields the model finished before running out
+ * of budget are perfectly good. Truncation almost always lands inside the
+ * longest field (the description), so the short ones come through and the
+ * listing still gets a translated title and commune instead of nothing.
+ *
+ * This walks the text with a small scanner rather than a regex because values
+ * contain escaped quotes (`".redis"`, `\"`), and a regex would end a value at
+ * the first inner quote and hand back a fragment with a dangling backslash.
+ */
+function salvageTruncated(text: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  const KEY = /"([a-zA-Z_][a-zA-Z0-9_]*)"\s*:\s*"/g;
+
+  let match: RegExpExecArray | null;
+  while ((match = KEY.exec(text)) !== null) {
+    const key = match[1];
+    let i = match.index + match[0].length;
+    let value = "";
+    let closed = false;
+
+    while (i < text.length) {
+      const ch = text[i];
+      if (ch === "\\") {
+        // Keep the escape sequence intact; JSON.parse below decodes it.
+        value += text[i] + (text[i + 1] ?? "");
+        i += 2;
+        continue;
+      }
+      if (ch === '"') {
+        closed = true;
+        i += 1;
+        break;
+      }
+      value += ch;
+      i += 1;
+    }
+
+    // Only keep values that were actually terminated by a quote. The last
+    // value in a truncated reply is by definition unfinished.
+    if (!closed) break;
+    try {
+      out[key] = JSON.parse(`"${value}"`) as string;
+    } catch {
+      // Undecodable escape; skip this field but keep scanning the rest.
+    }
+    KEY.lastIndex = i;
+  }
+
+  return out;
+}
+
+function parseTranslation(
+  text: string,
+  allowSalvage = false
+): Record<string, string> | null {
   // Models sometimes wrap JSON in a fenced block despite being told not to.
   const cleaned = text.replace(/^```(?:json)?/i, "").replace(/```$/, "").trim();
   try {
@@ -129,7 +208,9 @@ function parseTranslation(text: string): Record<string, string> | null {
     }
     return out;
   } catch {
-    return null;
+    // Only the caller that knows the reply was truncated opts into salvage;
+    // anywhere else a parse failure means the model returned junk.
+    return allowSalvage ? salvageTruncated(cleaned) : null;
   }
 }
 
@@ -139,14 +220,27 @@ function parseTranslation(text: string): Record<string, string> | null {
  * of storing a half-blank listing.
  */
 function adopt(
-  data: { candidates?: { content?: { parts?: { text?: string }[] } }[] },
+  data: {
+    candidates?: {
+      finishReason?: string;
+      content?: { parts?: { text?: string }[] };
+    }[];
+  },
   ad: TranslatableAd,
   target: "fr" | "ar"
 ): TranslatableAd | null {
   const raw = data.candidates?.[0]?.content?.parts
     ?.map((p) => p.text ?? "")
     .join("");
-  const parsed = raw ? parseTranslation(raw) : null;
+  if (!raw) return null;
+
+  // MAX_TOKENS is the one failure this module used to swallow silently: the
+  // reply was cut mid-JSON, the parse threw, and the listing kept its French
+  // with nothing logged. Knowing the cause lets us salvage the fields that did
+  // finish instead of throwing the whole reply away.
+  const truncated = data.candidates?.[0]?.finishReason === "MAX_TOKENS";
+
+  const parsed = parseTranslation(raw, truncated);
   if (!parsed) return null;
 
   const next: TranslatableAd = { ...ad };
@@ -175,20 +269,41 @@ export async function translateAd(ad: TranslatableAd): Promise<TranslatableAd> {
   const apiKey = process.env.GEMINI_API_KEY || process.env.gemini_api_key;
   if (!apiKey) return withoutTranslation(ad);
 
-  const source = direction === "fr>ar" ? "fr" : "ar";
   const target = direction === "fr>ar" ? "ar" : "fr";
 
-  const body = JSON.stringify({
-    system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
-    contents: [{ role: "user", parts: [{ text: jsonPayload(direction, ad) }] }],
-    generationConfig: {
-      temperature: 0,
-      responseMimeType: "application/json",
-      maxOutputTokens: 1024,
-    },
-  });
+  /**
+   * Builds the request. Truncation used to be fatal to the whole reply, so a
+   * retry after one asks for more room rather than repeating the same shape and
+   * getting cut at the same place.
+   */
+  const buildBody = (maxOutputTokens: number) =>
+    JSON.stringify({
+      system_instruction: { parts: [{ text: SYSTEM_PROMPT }] },
+      contents: [{ role: "user", parts: [{ text: jsonPayload(direction, ad) }] }],
+      generationConfig: {
+        temperature: 0,
+        responseMimeType: "application/json",
+        maxOutputTokens,
+        thinkingConfig: { thinkingBudget: THINKING_BUDGET },
+      },
+    });
+
+  /**
+   * Last reply that was cut off. Kept so an exhausted retry loop can still
+   * salvage the fields the model finished: a truncated reply is far better than
+   * no reply, because the fallback copies French across and the listing shows
+   * up untranslated in the Arabic view.
+   */
+  let truncatedReply: {
+    candidates?: {
+      finishReason?: string;
+      content?: { parts?: { text?: string }[] };
+    }[];
+  } | null = null;
 
   for (const model of MODELS) {
+    let maxOutputTokens = MAX_OUTPUT_TOKENS;
+
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
       if (attempt > 0) await sleep(BACKOFF_MS * attempt);
       try {
@@ -197,7 +312,7 @@ export async function translateAd(ad: TranslatableAd): Promise<TranslatableAd> {
           {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body,
+            body: buildBody(maxOutputTokens),
             signal: AbortSignal.timeout(TIMEOUT_MS),
           }
         );
@@ -209,8 +324,23 @@ export async function translateAd(ad: TranslatableAd): Promise<TranslatableAd> {
         if (!res.ok) break;
 
         const data = (await res.json()) as {
-          candidates?: { content?: { parts?: { text?: string }[] } }[];
+          candidates?: {
+            finishReason?: string;
+            content?: { parts?: { text?: string }[] };
+          }[];
         };
+
+        // A cut-off reply is a capacity problem, not a bad one, so give the
+        // next attempt a bigger budget before accepting a salvaged partial.
+        if (data.candidates?.[0]?.finishReason === "MAX_TOKENS") {
+          truncatedReply = data;
+          console.warn(
+            `[translate] ${model}: reply hit maxOutputTokens=${maxOutputTokens}; retrying with more`
+          );
+          maxOutputTokens = Math.min(maxOutputTokens * 4, 16_384);
+          continue;
+        }
+
         const adopted = adopt(data, ad, target);
         if (adopted) return adopted;
         // Reply had nothing usable; try the next model.
@@ -220,6 +350,14 @@ export async function translateAd(ad: TranslatableAd): Promise<TranslatableAd> {
         // help, so move on.
         break;
       }
+    }
+  }
+
+  if (truncatedReply) {
+    const partial = adopt(truncatedReply, ad, target);
+    if (partial) {
+      console.warn("[translate] using fields salvaged from a truncated reply");
+      return partial;
     }
   }
 
