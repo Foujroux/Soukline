@@ -2,13 +2,15 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { formatPrice, type Listing } from "@/data/listings";
+import { formatPrice } from "@/data/listings";
 import { getCategory } from "@/data/categories";
 import { getWilaya } from "@/data/wilayas";
 import {
   deleteMyAd,
   fetchMyAds,
   fetchSavedAds,
+  type Thread,
+  type UserAd,
 } from "@/lib/userAds";
 import { accountTypeLabel, clearProfile, getProfile } from "@/lib/client-auth";
 import type { SessionUser } from "@/lib/auth-types";
@@ -52,13 +54,16 @@ export default function Dashboard({ lang, dictionary }: Props) {
   const [tab, setTab] = useState<TabKey>("overview");
   const [vote, setVote] = useState(0);
   const [profile, setProfile] = useState<SessionUser | null | undefined>(undefined);
-  const [myAds, setMyAds] = useState<Listing[]>([]);
-  const [savedAds, setSavedAds] = useState<Listing[]>([]);
+  // `UserAd`, not `Listing`: these are the authenticated shapes from
+  // /api/ads/mine and the saved-ads store, which carry seller contact details
+  // and accountType. The panels below read those fields.
+  const [myAds, setMyAds] = useState<UserAd[]>([]);
+  const [savedAds, setSavedAds] = useState<UserAd[]>([]);
 
   useEffect(() => {
     let cancelled = false;
     fetchSavedAds().then((ads) => {
-      if (!cancelled) setSavedAds(ads as unknown as Listing[]);
+      if (!cancelled) setSavedAds(ads);
     });
     return () => {
       cancelled = true;
@@ -85,7 +90,7 @@ export default function Dashboard({ lang, dictionary }: Props) {
     }
     let cancelled = false;
     fetchMyAds().then((ads) => {
-      if (!cancelled) setMyAds(ads as unknown as Listing[]);
+      if (!cancelled) setMyAds(ads);
     });
     return () => {
       cancelled = true;
@@ -94,7 +99,7 @@ export default function Dashboard({ lang, dictionary }: Props) {
 
   const threads = useMemo(() => {
     try {
-      return JSON.parse(localStorage.getItem("soukdz_threads") || "[]") as any[];
+      return JSON.parse(localStorage.getItem("soukdz_threads") || "[]") as Thread[];
     } catch {
       return [];
     }
@@ -231,9 +236,9 @@ export default function Dashboard({ lang, dictionary }: Props) {
           />
         )}
         {tab === "saved" && (
-          <SavedAds lang={lang} saved={savedAds as any[]} dictionary={dictionary} />
+          <SavedAds lang={lang} saved={savedAds} />
         )}
-        {tab === "share" && <ShareApp lang={lang} dictionary={dictionary} />}
+        {tab === "share" && <ShareApp dictionary={dictionary} />}
         {tab === "moderation" && profile.accountType === "admin" && (
           <AdminPanel lang={lang} />
         )}
@@ -253,9 +258,9 @@ function Overview({
   dictionary,
 }: {
   lang: "fr" | "ar";
-  myAds: any[];
+  myAds: UserAd[];
   totalViews: number;
-  threads: any[];
+  threads: Thread[];
   dictionary: Dictionary;
 }) {
   const stats = [
@@ -300,7 +305,7 @@ function MyAds({
   onDelete,
 }: {
   lang: "fr" | "ar";
-  myAds: any[];
+  myAds: UserAd[];
   dictionary: Dictionary;
   onDelete: (id: string) => void;
 }) {
@@ -369,7 +374,7 @@ function MyAds({
   );
 }
 
-function SavedAds({ lang, saved, dictionary }: { lang: "fr" | "ar"; saved: any[]; dictionary: Dictionary }) {
+function SavedAds({ lang, saved }: { lang: "fr" | "ar"; saved: UserAd[] }) {
   if (saved.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center">
@@ -416,7 +421,7 @@ function SavedAds({ lang, saved, dictionary }: { lang: "fr" | "ar"; saved: any[]
   );
 }
 
-function ShareApp({ lang, dictionary }: { lang: "fr" | "ar"; dictionary: Dictionary }) {
+function ShareApp({ dictionary }: { dictionary: Dictionary }) {
   // Resolved after mount so the server-rendered markup matches on hydration.
   const [url, setUrl] = useState("");
   const [canNativeShare, setCanNativeShare] = useState(false);
@@ -594,74 +599,6 @@ function Settings({
         <h3 className="text-sm font-bold text-slate-500">{dictionary.dashboard.lastLogin}</h3>
         <p className="mt-1 text-slate-900">{new Date().toLocaleDateString(lang === "ar" ? "ar-DZ" : "fr-DZ")}</p>
       </div>
-    </div>
-  );
-}
-
-function ModerationAds({
-  lang,
-  myAds,
-  dictionary,
-  onDelete,
-}: {
-  lang: "fr" | "ar";
-  myAds: any[];
-  dictionary: Dictionary;
-  onDelete: (id: string) => void;
-}) {
-  if (myAds.length === 0) {
-    return (
-      <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center">
-        <div className="text-4xl">🛡️</div>
-        <p className="mt-3 font-semibold text-slate-700">
-          {lang === "fr" ? "Aucune annonce à modérer." : "لا توجد إعلانات للإشراف عليها."}
-        </p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-3">
-      <p className="rounded-xl bg-violet-50 px-4 py-2.5 text-xs font-medium text-violet-700">
-        {lang === "fr"
-          ? "Espace modération : supprimez les annonces non conformes publiées sur cet appareil."
-          : "مساحة الإشراف: احذف الإعلانات المخالفة المنشورة على هذا الجهاز."}
-      </p>
-      {myAds.map((ad) => {
-        const cat = getCategory(ad.categorySlug);
-        const title = lang === "fr" ? ad.titleFr : ad.titleAr || ad.titleFr;
-        return (
-          <div
-            key={ad.id}
-            className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center"
-          >
-            <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-xl bg-gradient-to-br from-emerald-600 to-teal-500 text-2xl">
-              {ad.images[0] ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={ad.images[0]} alt="" loading="lazy" decoding="async" className="h-full w-full object-cover" />
-              ) : (
-                <span>{cat?.emoji ?? "📦"}</span>
-              )}
-            </div>
-            <div className="min-w-0 flex-1">
-              <h3 className="truncate font-bold text-slate-900">{title}</h3>
-              <p className="mt-0.5 text-sm font-semibold text-emerald-700">{formatPrice(ad.price, lang)}</p>
-              <p className="mt-0.5 text-xs text-slate-500">
-                {ad.sellerFr || ad.sellerAr} · {ad.email}
-              </p>
-            </div>
-            <div className="flex shrink-0 gap-2">
-              <button
-                type="button"
-                onClick={() => onDelete(ad.id)}
-                className="rounded-xl border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 transition-colors hover:bg-red-50"
-              >
-                {dictionary.ad.delete}
-              </button>
-            </div>
-          </div>
-        );
-      })}
     </div>
   );
 }

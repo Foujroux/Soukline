@@ -8,6 +8,14 @@ interface ChatMessage {
   content: string;
 }
 
+/** The slice of a Gemini generateContent reply this route reads. */
+interface GeminiReply {
+  candidates?: {
+    content?: { parts?: { text?: string }[] };
+  }[];
+  error?: { message?: string };
+}
+
 const SYSTEM_PROMPT = `Tu es l'assistant officiel de Souk.dz, une plateforme algérienne de petites annonces. Réponds toujours dans la langue de l'utilisateur (français ou arabe), de façon concise et utile.
 
 À propos de Souk.dz :
@@ -64,7 +72,7 @@ export async function POST(req: Request) {
     generationConfig: { maxOutputTokens: 300, temperature: 0.7 },
   });
 
-  let data: any = null;
+  let data: GeminiReply | null = null;
   let lastError: string | null = null;
   for (const model of models) {
     // 503 is transient "high demand" and clears on its own; measured at about
@@ -80,7 +88,7 @@ export async function POST(req: Request) {
           body: payload,
           signal: AbortSignal.timeout(model.includes("3.8") ? 8000 : 15000),
         });
-        const d = await res.json();
+        const d = (await res.json()) as GeminiReply;
         if (res.ok) {
           data = d;
           break;

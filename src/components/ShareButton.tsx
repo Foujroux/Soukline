@@ -49,7 +49,6 @@ async function writeToClipboard(text: string): Promise<boolean> {
 }
 
 export default function ShareButton({
-  lang,
   dictionary,
   href,
   title,

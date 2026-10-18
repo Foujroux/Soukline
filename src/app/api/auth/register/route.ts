@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { sanitizeEmail, sanitizeName, sanitizePhone } from "@/lib/sanitize";
+import { sanitizeName, sanitizePhone } from "@/lib/sanitize";
 import { SELF_SERVICE_ACCOUNT_TYPES, type AccountType } from "@/lib/auth-types";
 import { getSessionUser } from "@/lib/server-auth";
 import {

@@ -9,8 +9,7 @@ export async function generateStaticParams() {
   return [{ lang: "fr" }, { lang: "ar" }];
 }
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const { lang } = await params;
+export async function generateMetadata(): Promise<Metadata> {
   return { title: "FAQ - Souk.dz" };
 }
 

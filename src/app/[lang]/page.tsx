@@ -77,7 +77,7 @@ export default async function HomePage({
             {dictionary.hero.viewAll} →
           </a>
         </div>
-        <CategoryGrid lang={resolved} dictionary={dictionary} />
+        <CategoryGrid lang={resolved} />
       </section>
 
       {/* Featured */}
@@ -143,14 +143,7 @@ export default async function HomePage({
   );
 }
 
-function CategoryGrid({
-  lang,
-  dictionary,
-}: {
-  lang: "fr" | "ar";
-  dictionary: any;
-}) {
-  void dictionary;
+function CategoryGrid({ lang }: { lang: "fr" | "ar" }) {
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
       {CATEGORIES.map((cat) => (

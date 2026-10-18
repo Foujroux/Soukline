@@ -9,7 +9,7 @@ interface Props {
   dictionary: Dictionary;
 }
 
-export default function MessagesList({ lang, dictionary }: Props) {
+export default function MessagesList({ lang }: Props) {
   const [threads, setThreads] = useState<Thread[]>([]);
 
   useEffect(() => {

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ListingGrid } from "@/components/ListingCard";
-import { sortListings, type Listing, type SortOrder } from "@/data/listings";
+import type { Listing } from "@/data/listings";
 import type { Dictionary } from "@/lib/dictionary";
 import { useHomeFilters } from "./HomeFiltersProvider";
 

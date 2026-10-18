@@ -15,7 +15,6 @@ interface Props {
 
 export default function UserMenu({
   lang,
-  loginLabel,
   accountLabel,
   logoutLabel,
   myAdsLabel,
@@ -121,15 +120,6 @@ function ChevronIcon({ open }: { open: boolean }) {
       strokeWidth="2"
     >
       <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-    </svg>
-  );
-}
-
-function UserIcon() {
-  return (
-    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <circle cx="12" cy="8" r="4" />
-      <path strokeLinecap="round" d="M4 21c0-4 3.6-6.5 8-6.5s8 2.5 8 6.5" />
     </svg>
   );
 }

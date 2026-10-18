@@ -3,7 +3,7 @@ import { getUserFromRequest } from "@/lib/server-auth";
 
 export const runtime = "nodejs";
 
-export async function GET(request: Request) {
+export async function GET() {
   const user = await getUserFromRequest();
   if (!user) {
     return NextResponse.json({ user: null }, { status: 401 });

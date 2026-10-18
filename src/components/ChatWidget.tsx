@@ -13,7 +13,7 @@ interface Message {
   content: string;
 }
 
-export default function ChatWidget({ lang, dictionary }: Props) {
+export default function ChatWidget({ dictionary }: Props) {
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     { role: "assistant", content: dictionary.chat.greeting },

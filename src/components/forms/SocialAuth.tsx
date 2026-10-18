@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { toAlgeriaE164 } from "@/lib/phone";
 import {
   createOAuthClient,
-  isOAuthProvider,
   type OAuthProvider,
 } from "@/utils/supabase/oauth-client";
 import type { Dictionary } from "@/lib/dictionary";
