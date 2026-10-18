@@ -2,6 +2,7 @@ import { CATEGORIES } from "@/data/categories";
 import type { Dictionary } from "@/lib/dictionary";
 
 const TIKTOK_URL = "https://www.tiktok.com/@soukline.dz";
+const YOUTUBE_URL = "https://www.youtube.com/@Soukdz";
 const EMAIL = "soukdzenline@gmail.com";
 
 function EmailIcon({ className = "h-5 w-5" }: { className?: string }) {
@@ -16,6 +17,14 @@ function TikTokIcon({ className = "h-5 w-5" }: { className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
       <path d="M16.6 5.82a4.28 4.28 0 0 1-1.04-2.82h-3.1v12.4a2.59 2.59 0 0 1-2.6 2.5 2.59 2.59 0 1 1 .77-5.06V9.7a5.68 5.68 0 0 0-.77-.05A5.62 5.62 0 0 0 4.1 15.2 5.62 5.62 0 0 0 9.72 20.8a5.62 5.62 0 0 0 5.62-5.6V9.01a7.35 7.35 0 0 0 4.28 1.37V7.28a4.28 4.28 0 0 1-3.02-1.46z" />
+    </svg>
+  );
+}
+
+function YouTubeIcon({ className = "h-5 w-5" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" className={className} aria-hidden>
+      <path d="M23.5 6.9a3.02 3.02 0 0 0-2.12-2.14C19.5 4.25 12 4.25 12 4.25s-7.5 0-9.38.51A3.02 3.02 0 0 0 .5 6.9C0 8.79 0 12 0 12s0 3.21.5 5.1a3.02 3.02 0 0 0 2.12 2.14c1.88.51 9.38.51 9.38.51s7.5 0 9.38-.51a3.02 3.02 0 0 0 2.12-2.14C24 15.21 24 12 24 12s0-3.21-.5-5.1ZM9.6 15.6V8.4L15.8 12l-6.2 3.6Z" />
     </svg>
   );
 }
@@ -35,6 +44,7 @@ export default function Footer({
         <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-5">
           <div>
             <a href={`/${lang}`} className="flex items-center gap-2">
+              {/* eslint-disable-next-line @next/next/no-img-element -- fixed-size 36px mark from /public; matches Logo.tsx. */}
               <img src="/logo.jpg" alt="Souk.dz" className="h-9 w-9 rounded-lg object-cover" />
               <span className="text-xl font-extrabold text-white">
                 Souk<span className="text-emerald-400">.dz</span>
@@ -155,6 +165,18 @@ export default function Footer({
               <span>{dictionary.footer.tiktok}</span>
               <span className="font-normal text-slate-400">
                 {dictionary.footer.tiktokHandle}
+              </span>
+            </a>
+            <a
+              href={YOUTUBE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2.5 text-sm font-bold text-white ring-1 ring-slate-700 transition-colors hover:ring-red-500"
+            >
+              <YouTubeIcon />
+              <span>{dictionary.footer.youtube}</span>
+              <span className="font-normal text-slate-400">
+                {dictionary.footer.youtubeHandle}
               </span>
             </a>
           </div>
