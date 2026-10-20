@@ -54,6 +54,9 @@ export default async function AdDetailPage({ params }: PageProps) {
     : commune;
   // The embed URL is rebuilt from the stored link, never taken from it as is.
   const videoEmbed = videoEmbedUrl(listing.videoUrl);
+  // An ad with a video but no photo shows the player instead of the category
+  // placeholder: the video is the picture.
+  const showCarousel = listing.images.length > 0 || !videoEmbed;
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
@@ -71,32 +74,30 @@ export default async function AdDetailPage({ params }: PageProps) {
       <div className="mt-4 flex flex-col gap-6 xl:flex-row">
         {/* Main content */}
         <div className="min-w-0 flex-1 space-y-6">
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-            <div className="relative">
-              <ImageCarousel
-                images={listing.images}
-                alt={title}
-                lang={resolved}
-                coverClassName={getCategoryTone(category).cover}
-                placeholder={
-                  <>
-                    <span className="text-8xl opacity-90">{category?.emoji ?? "📦"}</span>
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
-                  </>
-                }
-              />
-              {listing.featured && (
-                <span className="absolute top-3 ltr:left-3 rtl:right-3 z-10 rounded-full bg-amber-400/95 px-3 py-1 text-xs font-bold uppercase tracking-wide text-amber-950 shadow">
-                  ★ {resolved === "fr" ? "Annonce à la une" : "إعلان مميز"}
-                </span>
-              )}
+          {showCarousel && (
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+              <div className="relative">
+                <ImageCarousel
+                  images={listing.images}
+                  alt={title}
+                  lang={resolved}
+                  coverClassName={getCategoryTone(category).cover}
+                  placeholder={
+                    <>
+                      <span className="text-8xl opacity-90">{category?.emoji ?? "📦"}</span>
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                    </>
+                  }
+                />
+                {listing.featured && <FeaturedBadge lang={resolved} />}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Video */}
           {videoEmbed && (
             <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
-              <div className="aspect-video">
+              <div className="relative aspect-video">
                 <iframe
                   src={videoEmbed}
                   title={title}
@@ -105,6 +106,7 @@ export default async function AdDetailPage({ params }: PageProps) {
                   allowFullScreen
                   className="h-full w-full border-0"
                 />
+                {listing.featured && <FeaturedBadge lang={resolved} />}
               </div>
             </div>
           )}
@@ -256,6 +258,14 @@ function formatDate(date: string, lang: "fr" | "ar"): string {
     month: "long",
     day: "numeric",
   }).format(new Date(date));
+}
+
+function FeaturedBadge({ lang }: { lang: "fr" | "ar" }) {
+  return (
+    <span className="absolute top-3 ltr:left-3 rtl:right-3 z-10 rounded-full bg-amber-400/95 px-3 py-1 text-xs font-bold uppercase tracking-wide text-amber-950 shadow">
+      ★ {lang === "fr" ? "Annonce à la une" : "إعلان مميز"}
+    </span>
+  );
 }
 
 function PinIcon() {

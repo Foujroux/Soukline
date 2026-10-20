@@ -4,6 +4,8 @@ import { formatPrice } from "@/data/listings";
 import { getCategory, getCategoryTone } from "@/data/categories";
 import { getWilaya } from "@/data/wilayas";
 import ShareButton from "@/components/ShareButton";
+import VideoThumbnail from "@/components/VideoThumbnail";
+import { videoThumbnailUrls } from "@/lib/video";
 import { interpolate } from "@/lib/interpolate";
 import type { Dictionary } from "@/lib/dictionary";
 
@@ -45,6 +47,8 @@ export function ListingCard({
   const wilaya = getWilaya(listing.wilayaCode);
   const title = lang === "fr" ? listing.titleFr : listing.titleAr;
   const categoryLabel = lang === "fr" ? category?.fr ?? "" : category?.ar ?? "";
+  // An ad with a video but no photo borrows the video's own thumbnail.
+  const videoThumbs = videoThumbnailUrls(listing.videoUrl);
 
   return (
     <article className="group relative flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition-all hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-lg">
@@ -62,6 +66,12 @@ export function ListingCard({
             alt={title}
             loading="lazy"
             decoding="async"
+            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+          />
+        ) : videoThumbs.length > 0 ? (
+          <VideoThumbnail
+            candidates={videoThumbs}
+            alt={title}
             className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
           />
         ) : (

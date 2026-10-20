@@ -131,3 +131,21 @@ export function videoEmbedUrl(value: unknown): string | null {
 export function hasVideo(value: unknown): boolean {
   return videoEmbedUrl(value) !== null;
 }
+
+/**
+ * Thumbnail candidates for a video link, best first.
+ *
+ * YouTube publishes maxresdefault.jpg only for videos that have an HD
+ * version, so hqdefault is kept as a fallback: it exists for every valid
+ * video id, letterboxed but never broken. Vimeo has no dependable thumbnail
+ * URL without an API call, so a Vimeo ad falls back to its category
+ * placeholder.
+ */
+export function videoThumbnailUrls(value: unknown): string[] {
+  const ref = parseVideoUrl(value);
+  if (!ref || ref.provider !== "youtube") return [];
+  return [
+    `https://i.ytimg.com/vi/${ref.id}/maxresdefault.jpg`,
+    `https://i.ytimg.com/vi/${ref.id}/hqdefault.jpg`,
+  ];
+}
