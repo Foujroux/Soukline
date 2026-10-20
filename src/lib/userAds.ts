@@ -26,6 +26,8 @@ export interface UserAd {
   negotiable: boolean;
   accountType?: AccountType;
   images: string[];
+  /** Canonical YouTube/Vimeo link, or "" when the ad has no video. */
+  videoUrl: string;
 }
 
 const AD_KEY = "soukdz_my_ads";

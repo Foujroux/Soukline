@@ -77,6 +77,12 @@ export function ListingCard({
             {lang === "fr" ? "Pro" : "محترف"}
           </span>
         )}
+        {listing.videoUrl && (
+          <span className="absolute bottom-2 ltr:right-2 rtl:left-2 inline-flex items-center gap-1 rounded-full bg-slate-900/80 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white shadow">
+            <PlayIcon />
+            {dictionary.listing.video}
+          </span>
+        )}
       </div>
 
       <div className="flex flex-1 flex-col p-3.5">
@@ -132,8 +138,7 @@ export function ListingGrid({
   listings: Listing[];
   lang: "fr" | "ar";
   dictionary: Dictionary;
-}) {
-  if (listings.length === 0) {
+}) {  if (listings.length === 0) {
     return (
       <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-12 text-center">
         <div className="text-4xl">🔍</div>
@@ -160,5 +165,13 @@ export function ListingGrid({
         />
       ))}
     </div>
+  );
+}
+
+function PlayIcon() {
+  return (
+    <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <path d="M8 5.14v13.72a1 1 0 001.54.84l10.5-6.86a1 1 0 000-1.68L9.54 4.3A1 1 0 008 5.14z" />
+    </svg>
   );
 }

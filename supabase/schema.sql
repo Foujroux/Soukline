@@ -180,6 +180,7 @@ create table if not exists public.listings (
   negotiable boolean not null default false,
   account_type text not null default 'user',
   images jsonb not null default '[]',
+  video_url text not null default '',
   created_at timestamptz not null default now()
 );
 

@@ -5,6 +5,7 @@ import { getCategory, getCategoryTone } from "@/data/categories";
 import { getWilaya } from "@/data/wilayas";
 import { getDictionary } from "@/lib/i18n";
 import { isLang, normalizeLang } from "@/lib/lang";
+import { videoEmbedUrl } from "@/lib/video";
 import { ListingGrid } from "@/components/ListingCard";
 import { Breadcrumbs } from "@/components/Breadcrumbs";
 import UserAdDetail from "@/components/UserAdDetail";
@@ -51,6 +52,8 @@ export default async function AdDetailPage({ params }: PageProps) {
   const locationText = wilaya
     ? `${commune}, ${resolved === "fr" ? wilaya.fr : wilaya.ar}`
     : commune;
+  // The embed URL is rebuilt from the stored link, never taken from it as is.
+  const videoEmbed = videoEmbedUrl(listing.videoUrl);
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8">
@@ -89,6 +92,22 @@ export default async function AdDetailPage({ params }: PageProps) {
               )}
             </div>
           </div>
+
+          {/* Video */}
+          {videoEmbed && (
+            <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+              <div className="aspect-video">
+                <iframe
+                  src={videoEmbed}
+                  title={title}
+                  allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  referrerPolicy="strict-origin-when-cross-origin"
+                  allowFullScreen
+                  className="h-full w-full border-0"
+                />
+              </div>
+            </div>
+          )}
 
           {/* Title & price */}
           <div className="rounded-2xl border border-slate-200 bg-white p-6">

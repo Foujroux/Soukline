@@ -66,6 +66,7 @@ const fr = {
     similarAds: "Annonces similaires",
     condition: "État",
     adId: "Réf. annonce",
+    video: "Vidéo",
   },
   ad: {
     title: "Annonce",
@@ -191,6 +192,11 @@ const fr = {
     conditionUsed: "Occasion",
     uploadPhotos: "Ajouter des photos",
     uploadHint: "Vous pouvez ajouter plusieurs photos. La première sera la photo principale.",
+    videoLink: "Vidéo de l'annonce",
+    videoLinkPlaceholder: "https://www.youtube.com/watch?v=...",
+    videoHint:
+      "Optionnel : collez un lien YouTube ou Vimeo pour montrer votre annonce en vidéo.",
+    videoInvalid: "Ce lien n'est pas une vidéo YouTube ou Vimeo valide.",
     yourContact: "Vos informations de contact",
     name: "Votre nom",
     phone: "Téléphone",
@@ -346,6 +352,7 @@ const ar: typeof fr = {
     similarAds: "إعلانات مشابهة",
     condition: "الحالة",
     adId: "رقم الإعلان",
+    video: "فيديو",
   },
   ad: {
     title: "إعلان",
@@ -470,6 +477,11 @@ const ar: typeof fr = {
     conditionUsed: "مستعمل",
     uploadPhotos: "إضافة صور",
     uploadHint: "يمكنك إضافة عدة صور. الصورة الأولى ستكون الصورة الرئيسية.",
+    videoLink: "فيديو الإعلان",
+    videoLinkPlaceholder: "https://www.youtube.com/watch?v=...",
+    videoHint:
+      "اختياري: الصق رابط يوتيوب أو فيميو لتعرض إعلانك في فيديو.",
+    videoInvalid: "هذا الرابط ليس فيديو يوتيوب أو فيميو صالحًا.",
     yourContact: "معلومات التواصل الخاصة بك",
     name: "اسمك",
     phone: "الهاتف",

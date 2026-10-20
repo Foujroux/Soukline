@@ -7,6 +7,7 @@ import { WILAYAS } from "@/data/wilayas";
 import { publishAd, conditionLabel, CONDITIONS, type UserAd } from "@/lib/userAds";
 import { getCachedUser, getProfile } from "@/lib/client-auth";
 import { maxImagesFor } from "@/lib/ads-limits";
+import { parseVideoUrl, sanitizeVideoUrl } from "@/lib/video";
 import type { Dictionary } from "@/lib/dictionary";
 
 interface Props {
@@ -69,9 +70,18 @@ export default function PostAdForm({ lang, dictionary }: Props) {
     const categorySlug = String(form.get("category") || "services");
     const conditionKey = String(form.get("condition") || "new");
     const negotiate = form.get("negotiable") === "on";
+    const videoInput = String(form.get("videoUrl") || "").trim();
     const profile = getCachedUser();
     if (!profile) {
       router.push(`/${lang}/connexion`);
+      return;
+    }
+
+    // A link the app cannot embed is worth stopping over here: publishing it
+    // would leave the ad with a video section that never plays.
+    if (videoInput && !parseVideoUrl(videoInput)) {
+      setSubmitting(false);
+      setSubmitError(dictionary.create.videoInvalid);
       return;
     }
 
@@ -102,6 +112,7 @@ export default function PostAdForm({ lang, dictionary }: Props) {
       negotiable: negotiate,
       accountType: profile.accountType,
       images,
+      videoUrl: sanitizeVideoUrl(videoInput),
     };
 
     try {
@@ -342,10 +353,38 @@ export default function PostAdForm({ lang, dictionary }: Props) {
         )}
       </section>
 
+      {/* Video */}
+      <section>
+        <h3 className="mb-4 text-sm font-extrabold uppercase tracking-wide text-slate-500">
+          4. {dictionary.create.videoLink}
+        </h3>
+        <label
+          htmlFor="videoUrl"
+          className="mb-1.5 block text-sm font-semibold text-slate-700"
+        >
+          {dictionary.create.videoLink}
+        </label>
+        <div className="relative">
+          <span className="pointer-events-none absolute ltr:left-3 rtl:right-3 top-1/2 -translate-y-1/2 text-slate-400">
+            <LinkIcon />
+          </span>
+          <input
+            id="videoUrl"
+            name="videoUrl"
+            type="text"
+            inputMode="url"
+            dir="ltr"
+            placeholder={dictionary.create.videoLinkPlaceholder}
+            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 ltr:pl-11 rtl:pr-11 text-sm text-slate-800 placeholder:text-slate-400 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+          />
+        </div>
+        <p className="mt-2 text-xs text-slate-500">{dictionary.create.videoHint}</p>
+      </section>
+
       {/* Contact */}
       <section>
         <h3 className="mb-4 text-sm font-extrabold uppercase tracking-wide text-slate-500">
-          4. {dictionary.create.yourContact}
+          5. {dictionary.create.yourContact}
         </h3>
         <div className="space-y-4">
           <div>
@@ -467,6 +506,15 @@ function SpinnerIcon() {
     <svg className="h-8 w-8 animate-spin" viewBox="0 0 24 24" fill="none">
       <circle className="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
       <path className="opacity-90" d="M22 12a10 10 0 00-10-10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function LinkIcon() {
+  return (
+    <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+      <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71" />
+      <path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71" />
     </svg>
   );
 }

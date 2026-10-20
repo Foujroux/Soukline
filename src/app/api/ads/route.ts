@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getAuthContext } from "@/lib/server-auth";
 import { addAd, listAds } from "@/lib/server-ads";
 import { normalizeSearchText, sortListings, type SortOrder } from "@/data/listings";
+import { sanitizeVideoUrl } from "@/lib/video";
 import type { UserAd } from "@/lib/userAds";
 
 export const runtime = "nodejs";
@@ -103,6 +104,7 @@ export async function POST(request: NextRequest) {
         email: data.email ?? "",
         negotiable: Boolean(data.negotiable),
         images: Array.isArray(data.images) ? data.images : [],
+        videoUrl: sanitizeVideoUrl(data.videoUrl),
       },
     });
     return NextResponse.json({ ad }, { status: 201 });

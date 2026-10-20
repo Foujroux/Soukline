@@ -22,6 +22,8 @@ export interface Listing {
   images: string[];
   conditionFr: string;
   conditionAr: string;
+  /** Canonical YouTube/Vimeo link, or "" when the ad has no video. */
+  videoUrl: string;
 }
 
 export function formatPrice(price: number, lang: "fr" | "ar"): string {

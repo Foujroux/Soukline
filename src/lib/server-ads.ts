@@ -4,6 +4,7 @@ import {
   sanitizePhone,
   sanitizeText,
 } from "@/lib/sanitize";
+import { sanitizeVideoUrl } from "@/lib/video";
 import type { AccountType } from "@/lib/auth-types";
 import { maxAdsFor, maxImagesFor } from "@/lib/ads-limits";
 import { after } from "next/server";
@@ -49,6 +50,7 @@ interface ListingRow {
   negotiable: boolean | null;
   account_type: string | null;
   images: string[] | null;
+  video_url: string | null;
   created_at: string | null;
 }
 
@@ -108,6 +110,7 @@ function rowToAd(row: ListingRow): StoredAd {
     negotiable: Boolean(row.negotiable),
     accountType: (row.account_type as AccountType | null) ?? undefined,
     images: Array.isArray(row.images) ? row.images : [],
+    videoUrl: row.video_url ?? "",
   };
 }
 
@@ -301,6 +304,7 @@ export async function addAd(
     negotiable: Boolean(input.data.negotiable),
     account_type: input.accountType,
     images,
+    video_url: sanitizeVideoUrl(input.data.videoUrl),
     created_at: new Date().toISOString(),
   };
 
