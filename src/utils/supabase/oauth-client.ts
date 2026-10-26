@@ -6,14 +6,37 @@ import {
   supabaseUrl,
 } from "./config";
 
-/** Third-party social providers wired into the sign-in / sign-up screens. */
-export const OAUTH_PROVIDERS = ["google", "facebook"] as const;
-export type OAuthProvider = (typeof OAUTH_PROVIDERS)[number];
+const KNOWN_OAUTH_PROVIDERS = ["google", "facebook"] as const;
+export type OAuthProvider = (typeof KNOWN_OAUTH_PROVIDERS)[number];
+
+/**
+ * Social providers currently offered by the app. Defaults to Google + Facebook
+ * and can be overridden per environment with NEXT_PUBLIC_OAUTH_PROVIDERS
+ * (comma-separated, e.g. "google"). An empty value disables social sign-in
+ * entirely, which is how the broken providers can be taken offline without
+ * touching code.
+ */
+function enabledOAuthProviders(): readonly OAuthProvider[] {
+  const raw = process.env.NEXT_PUBLIC_OAUTH_PROVIDERS;
+  if (raw === undefined) return [...KNOWN_OAUTH_PROVIDERS];
+  const requested = raw
+    .split(",")
+    .map((p) => p.trim().toLowerCase())
+    .filter(Boolean);
+  const allowed = requested.filter((p) =>
+    (KNOWN_OAUTH_PROVIDERS as readonly string[]).includes(p)
+  );
+  return allowed as OAuthProvider[];
+}
+
+/** Social providers offered right now; empty means "social auth off". */
+export const OAUTH_PROVIDERS: readonly OAuthProvider[] = enabledOAuthProviders();
 
 export function isOAuthProvider(value: unknown): value is OAuthProvider {
   return (
     typeof value === "string" &&
-    (OAUTH_PROVIDERS as readonly string[]).includes(value)
+    (OAUTH_PROVIDERS as readonly string[]).includes(value) &&
+    (KNOWN_OAUTH_PROVIDERS as readonly string[]).includes(value)
   );
 }
 

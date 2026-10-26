@@ -75,8 +75,11 @@ export async function GET() {
 
     const external = settings.external ?? {};
     const methods: AuthMethods = {
-      google: isEnabled(external.google),
-      facebook: isEnabled(external.facebook),
+      // A provider the app has taken offline (via NEXT_PUBLIC_OAUTH_PROVIDERS)
+      // is reported as unavailable even when the Supabase backend still has it
+      // enabled - the sign-in screen should not offer it.
+      google: isEnabled(external.google) && OAUTH_PROVIDERS.includes("google"),
+      facebook: isEnabled(external.facebook) && OAUTH_PROVIDERS.includes("facebook"),
       // Phone is gated by its own toggle; sms_provider only says which gateway
       // is selected, not that the toggle is on.
       sms: isEnabled(external.phone) && Boolean(settings.sms_provider),
