@@ -74,6 +74,15 @@ export default function OAuthCallback({ lang, dictionary }: Props) {
       // GoTrue reports provider-side failures by redirecting back with ?error=.
       const providerError = params.get("error_description") ?? params.get("error");
       if (providerError) {
+        // Structured log rather than only the user-facing string: the raw
+        // provider error code/description is what we need to act on, and the
+        // two are frequently different (error = code, error_description = text).
+        console.warn("[auth:callback] oauth provider error", {
+          providerError,
+          errorCode: params.get("error"),
+          errorDescription: params.get("error_description"),
+          url: window.location.href,
+        });
         fail(providerError);
         return;
       }
@@ -95,6 +104,11 @@ export default function OAuthCallback({ lang, dictionary }: Props) {
           code
         );
         if (error || !data.session) {
+          console.warn("[auth:callback] oauth code exchange failed", {
+            codePresent: Boolean(code),
+            exchangeError: error?.message ?? null,
+            exchangeErrorCode: (error as { code?: string } | null)?.code ?? null,
+          });
           fail(
             error?.message ??
               (lang === "fr" ? "Échange du code impossible." : "تعذّر تبادل الرمز.")
@@ -121,6 +135,10 @@ export default function OAuthCallback({ lang, dictionary }: Props) {
         });
         if (!res.ok) {
           const payload = (await res.json().catch(() => null)) as { error?: string } | null;
+          console.warn("[auth:callback] oauth session adoption failed", {
+            status: res.status,
+            adoptionError: payload?.error ?? null,
+          });
           fail(adoptionError(payload?.error ?? "INTERNAL", lang));
           return;
         }
